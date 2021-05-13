@@ -28,8 +28,6 @@ RUN Rscript -e 'remotes::install_version("BiocManager", version = "1.30.10")'
 RUN Rscript -e 'BiocManager::install(version = "3.11",ask = FALSE)'
 RUN Rscript -e 'BiocManager::install("mzR")'
 
-RUN Rscript -e 'remotes::install_version("hdf5r", version = "1.3.2")'
-
 COPY . /apLCMS
 RUN R CMD INSTALL /apLCMS \
  && rm -rf /apLCMS
