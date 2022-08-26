@@ -23,23 +23,23 @@ patrick::with_parameters_test_that(
     res <- microbenchmark::microbenchmark(
       extract_feature = {
         actual <- extract_features(
-          filenames,
           cluster = cluster,
-          min_pres = min_pres,
-          min_run = min_run,
-          mz_tol = tol,
-          intensity_weighted = intensity_weighted,
-          sd_cut = sd_cut,
-          sigma_ratio_lim = sigma_ratio_lim,
+          filenames,
+          min_presence = min_presence,
+          min_elution_length = min_elution_length,
+          mz_tol = mz_tol,
           baseline_correct = 0,
           baseline_correct_noise_percentile = 0.05,
+          intensity_weighted = intensity_weighted,
           min_bandwidth = NA,
           max_bandwidth = NA,
-          moment_power = 1,
-          BIC_factor = 2.0,
-          component_eliminate = 0.01,
+          sd_cut = sd_cut,
+          sigma_ratio_lim = sigma_ratio_lim,
+          shape_model = "bi-Gaussian",
           peak_estim_method = "moment",
-          shape_model = "bi-Gaussian"
+          component_eliminate = 0.01,
+          moment_power = 1,
+          BIC_factor = 2.0
         )
       },
       times = 10L
@@ -78,9 +78,9 @@ patrick::with_parameters_test_that(
   patrick::cases(
     RCX_shortened = list(
       filename = c("RCX_06_shortened", "RCX_07_shortened", "RCX_08_shortened"),
-      tol = 1e-05,
-      min_pres = 0.5,
-      min_run = 12,
+      mz_tol = 1e-05,
+      min_presence = 0.5,
+      min_elution_length = 12,
       intensity_weighted = FALSE,
       sd_cut = c(0.01, 500),
       sigma_ratio_lim = c(0.01, 100),
