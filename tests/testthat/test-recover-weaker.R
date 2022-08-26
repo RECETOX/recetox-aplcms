@@ -20,7 +20,7 @@ patrick::with_parameters_test_that(
     })
 
     adjusted <- lapply(filenames, function(x) {
-       arrow::read_parquet(x) |> dplyr::rename(rt = pos, sample_id = V6)
+      arrow::read_parquet(x) |> dplyr::rename(rt = pos, sample_id = V6)
     })
 
     aligned <- load_aligned_features(
@@ -90,7 +90,7 @@ patrick::with_parameters_test_that(
     })
 
     corrected_recovered_expected <- lapply(filenames, function(x) {
-       arrow::read_parquet(x) |> dplyr::rename(rt = pos, sample_id = V6)
+      arrow::read_parquet(x) |> dplyr::rename(rt = pos, sample_id = V6)
     })
     # preprocess dataframes
     keys <- c("mz", "sd1", "sd2", "area")

@@ -2,11 +2,11 @@ patrick::with_parameters_test_that(
   "get_template",
   {
     testdata <- file.path("..", "testdata")
-    
+
     filenames <- lapply(files, function(x) {
       file.path(testdata, "clusters", paste0(x, "_extracted_clusters.parquet"))
     })
-    
+
     extracted <- lapply(filenames, arrow::read_parquet)
 
     template_features <- compute_template(extracted)
@@ -42,7 +42,7 @@ patrick::with_parameters_test_that(
     )
 
     expected <- tibble::as_tibble(arrow::read_parquet(file.path(testdata, "adjusted", paste0(.test_name, ".parquet"))))
-    expected <- expected |> dplyr::rename( rt = pos, sample_id = V6, cluster = V7)
+    expected <- expected |> dplyr::rename(rt = pos, sample_id = V6, cluster = V7)
 
     expect_equal(corrected, expected)
   },

@@ -24,11 +24,9 @@ patrick::with_parameters_test_that(
       tibble::as_tibble(arrow::read_parquet(filepath))
     })
 
-
-    for(i in seq_along(filenames)) {
+    for (i in seq_along(filenames)) {
       expect_equal(actual$feature_tables[[i]], expected[[i]])
     }
-
   },
   patrick::cases(
     RCX_shortened_extracted = list(

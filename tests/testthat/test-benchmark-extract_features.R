@@ -1,7 +1,7 @@
 patrick::with_parameters_test_that(
   "test benchmark",
   {
-    if(skip){
+    if (skip) {
       skip("Disabled")
     }
 
@@ -13,17 +13,7 @@ patrick::with_parameters_test_that(
       file.path(testdata, "input", paste0(x, ".mzML"))
     })
 
-    # CRAN limits the number of cores available to packages to 2
-    # source https://stackoverflow.com/questions/50571325/r-cran-check-fail-when-using-parallel-functions#50571533
-    chk <- Sys.getenv("_R_CHECK_LIMIT_CORES_", "")
-
-    if (nzchar(chk) && chk == "TRUE") {
-      # use 2 cores in CRAN/Travis/AppVeyor
-      cluster <- 2L
-    } else {
-      # use all cores in devtools::test()
-      cluster <- parallel::detectCores()
-    }
+    cluster <- get_num_workers()
 
     if (!is(cluster, "cluster")) {
       cluster <- parallel::makeCluster(cluster)
@@ -32,25 +22,25 @@ patrick::with_parameters_test_that(
 
     res <- microbenchmark::microbenchmark(
       extract_feature = {
-          actual <- extract_features(
-            filenames,
-            cluster = cluster,
-            min_pres = min_pres,
-            min_run = min_run,
-            mz_tol = tol,
-            intensity_weighted = intensity_weighted,
-            sd_cut = sd_cut,
-            sigma_ratio_lim = sigma_ratio_lim,
-            baseline_correct = 0,
-            baseline_correct_noise_percentile = 0.05,
-            min_bandwidth = NA,
-            max_bandwidth = NA,
-            moment_power = 1,
-            BIC_factor = 2.0,
-            component_eliminate = 0.01,
-            peak_estim_method = "moment",
-            shape_model = "bi-Gaussian"
-          )
+        actual <- extract_features(
+          filenames,
+          cluster = cluster,
+          min_pres = min_pres,
+          min_run = min_run,
+          mz_tol = tol,
+          intensity_weighted = intensity_weighted,
+          sd_cut = sd_cut,
+          sigma_ratio_lim = sigma_ratio_lim,
+          baseline_correct = 0,
+          baseline_correct_noise_percentile = 0.05,
+          min_bandwidth = NA,
+          max_bandwidth = NA,
+          moment_power = 1,
+          BIC_factor = 2.0,
+          component_eliminate = 0.01,
+          peak_estim_method = "moment",
+          shape_model = "bi-Gaussian"
+        )
       },
       times = 10L
     )

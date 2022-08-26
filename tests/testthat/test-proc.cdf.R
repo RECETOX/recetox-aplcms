@@ -1,11 +1,11 @@
 patrick::with_parameters_test_that(
   "test proc.cdf",
   {
-    if(ci_skip == TRUE) skip_on_ci()
-    
+    if (ci_skip == TRUE) skip_on_ci()
+
     testdata <- file.path("..", "testdata")
     input_path <- file.path(testdata, "input", filename)
-    
+
     sut <- proc.cdf(
       input_path,
       min_presence = min_presence,
