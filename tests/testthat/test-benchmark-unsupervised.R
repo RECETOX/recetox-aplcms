@@ -10,7 +10,7 @@ patrick::with_parameters_test_that(
     testdata <- file.path("..", "testdata")
 
     filenames <- lapply(filename, function(x) {
-      file.path(testdata, paste0(x, ".mzml"))
+      file.path(testdata, "input", paste0(x, ".mzml"))
     })
 
     cluster <- get_num_workers()
