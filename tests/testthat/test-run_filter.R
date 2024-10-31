@@ -13,13 +13,12 @@ patrick::with_parameters_test_that(
     expected <- arrow::read_parquet(expected_path)
 
     expect_equal(actual, expected)
-    
   },
   patrick::cases(
     mbr_test0 = list(
       filename = "mbr_test0",
-      min_pres = 0.5,
-      min_run = 12,
+      min_pres = 0,
+      min_run = 0,
       ci_skip = FALSE
     ),
     RCX_06_shortened = list(
@@ -42,3 +41,18 @@ patrick::with_parameters_test_that(
     )
   )
 )
+
+
+test_that("Calculate scan rate works", {
+  rts <- c(1, 1.2, 1.4, 1.6, 2, 2.2, 2.6)
+
+  actual <- calculate_scan_rate(rts)
+  expected <- 5
+
+  expect_equal(actual, expected)
+})
+
+test_that("Calculating min_num_datapoints works", {
+  actual <- min_num_datapoints(4, 0.5, 5)
+  expect_equal(actual, 10)
+})
