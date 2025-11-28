@@ -15,19 +15,13 @@ RUN apt-get update -y && \
 # download and install miniconda
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh \
     && bash /tmp/miniconda.sh -b -p /bin/local/miniconda
-ENV PATH=/bin/local/miniconda/bin:$PATH
-
+ENV PATH="/bin/local/miniconda/bin:$PATH"
 
 RUN conda init
-# RUN conda install -n base -c defaults conda-anaconda-tos && \
-    # conda config --set plugins.auto_accept_tos y
-# ENV CONDA_ACCEPT_EULA=yes
-
-# configure conda and create environment
-# RUN conda init
 RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
     conda update conda
+
 RUN conda config --add channels conda-forge && \
     conda config --add channels bioconda && \
     conda config --set channel_priority strict && \

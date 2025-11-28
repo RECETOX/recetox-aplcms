@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - implemented maximum elution time filter [#243](https://github.com/RECETOX/recetox-aplcms/pull/243)
 
+### Changed
+- changed condition in run filter to include entire section, not only minimal required one [#244](https://github.com/RECETOX/recetox-aplcms/pull/244)
+
 ## [0.14.0] - 2025-07-04
 ### Added
 - implemented reading .raw files using rawRR [#237](https://github.com/RECETOX/recetox-aplcms/pull/237)
