@@ -15,7 +15,7 @@ patrick::with_parameters_test_that("basic hybrid test", {
   known_table <- arrow::read_parquet(
     file.path(testdata, "hybrid", "known_table.parquet")
   )
-
+  
   result <- hybrid(
     test_files,
     known_table,
@@ -26,7 +26,9 @@ patrick::with_parameters_test_that("basic hybrid test", {
   keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
 
   expected_path <- file.path(testdata, "hybrid", paste0(.test_name, "_recovered_feature_sample_table.parquet"))
+
   # arrow::write_parquet(actual, expected_path)
+
   expected <- arrow::read_parquet(expected_path)
 
   if (store_reports) {
@@ -46,7 +48,7 @@ patrick::with_parameters_test_that("basic hybrid test", {
     )
   }
 
-  expect_equal(actual, expected, tolerance)
+  expect_equal(actual, expected, tolerance = 1e-06)
 },
 patrick::cases(
   mbr = list(
@@ -62,6 +64,6 @@ patrick::cases(
   qc_no_dil_milliq = list(
     files = c("8_qc_no_dil_milliq.mzml", "21_qc_no_dil_milliq.mzml", "29_qc_no_dil_milliq.mzml"),
     ci_skip = TRUE,
-    full_testdata = FALSE
+    full_testdata = TRUE
   )
 ))

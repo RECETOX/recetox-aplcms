@@ -17,7 +17,13 @@ create_metadata <- function(sample_grouped, sample_names) {
     rtmean = mean(rt),
     rtmin = min(rt),
     rtmax = max(rt),
-    npeaks = n()
+    npeaks = n(),
+    sd1_mean = mean(sd1),
+    sd1_min = min(sd1),
+    sd1_max = max(sd1),
+    sd2_mean = mean(sd2),
+    sd2_min = min(sd2),
+    sd2_max = max(sd2)
   ) %>% rename(mz = "mzmean", rt = "rtmean")
 
   metadata_row <- dplyr::bind_cols(metadata_row, as.list(sample_presence))
@@ -163,7 +169,7 @@ comb <- function(x, ...) {
 clean_data_matrix <- function(x, sample_names) {
   x <- x %>%
     replace(is.na(.), 0) %>%
-    dplyr::relocate(sample_names) |>
+    dplyr::relocate(all_of(sample_names)) |>
     add_feature_ids()
   return(x)
 }

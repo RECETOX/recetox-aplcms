@@ -11,7 +11,7 @@ NULL
 #' @export 
 as_feature_sample_table <- function(metadata, rt_crosstab, int_crosstab) {
   feature_names <- as.character(rt_crosstab$id)
-  sample_names <- colnames(metadata)[-c(1:8)]
+  sample_names <- colnames(metadata)[-c(1:14)]
 
   feature_table <- data.frame(
     feature = feature_names,

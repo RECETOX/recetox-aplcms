@@ -4,3 +4,4 @@ tests/testdata/mbr*
 *.Rcheck
 *.tar.gz
 *.Rmd
+env

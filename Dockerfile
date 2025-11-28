@@ -17,7 +17,6 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -
     && bash /tmp/miniconda.sh -b -p /bin/local/miniconda
 ENV PATH="/bin/local/miniconda/bin:$PATH"
 
-# configure conda and create environment
 RUN conda init
 RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
