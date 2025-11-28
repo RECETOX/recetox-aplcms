@@ -105,7 +105,7 @@ run_filter <- function(newprof,
   newprof <- dplyr::filter(newprof, grps %in% uniq_grp) |> dplyr::arrange(grps, mz)
 
   results <- dplyr::group_by(newprof, grps) |>
-    dplyr::filter(n() >= min_count_run && abs(span(rt)) >= min_run) |>
+    dplyr::filter(n() >= round(span(rt) * min_pres * scan_rate) && span(rt) >= min_run) |>
     dplyr::ungroup() |>
     dplyr::rename(group_number = grps)
 
