@@ -258,6 +258,7 @@ augment_known_table <- function(
 #' @param min_occurrence A feature has to show up in at least this number of profiles to be included in the final result.
 #' @param min_pres This is a parameter of the run filter, to be passed to the function remove_noise().
 #' @param min_run Run filter parameter. The minimum length of elution time for a series of signals grouped by m/z to be considered a peak.
+#' @param max_run Run filter parameter. The maximum length of elution time for a series of signals grouped by m/z to be considered a peak.
 #' @param mz_tol m/z tolerance level for the grouping of data points. This value is expressed as the fraction of the m/z value. 
 #'  This value, multiplied by the m/z value, becomes the cutoff level. The recommended value is the machine's nominal accuracy level. 
 #'  Divide the ppm value by 1e6. For FTMS, 1e-5 is recommended.
@@ -303,6 +304,7 @@ hybrid <- function(
   min_occurrence = 2,
   min_pres = 0.5,
   min_run = 12,
+  max_run = Inf,
   mz_tol = 1e-05,
   baseline_correct = 0,
   baseline_correct_noise_percentile = 0.05,
@@ -327,7 +329,8 @@ hybrid <- function(
   recover_min_count = 3,
   intensity_weighted = FALSE,
   do_plot = FALSE,
-  cluster = 4
+  cluster = 4,
+  grouping_threshold = Inf
 ) {
   if (!is(cluster, 'cluster')) {
     cluster <- parallel::makeCluster(cluster)
@@ -348,12 +351,14 @@ hybrid <- function(
           filename = filename,
           min_pres = min_pres,
           min_run = min_run,
+          max_run = max_run,
           mz_tol = mz_tol,
           baseline_correct = baseline_correct,
           baseline_correct_noise_percentile = baseline_correct_noise_percentile,
           intensity_weighted = intensity_weighted,
           do.plot = do_plot,
-          cache = FALSE
+          cache = FALSE,
+          grouping_threshold = grouping_threshold
       )
   })
   

@@ -50,6 +50,8 @@ load_data <- function(filename,
 #'  signals grouped by m/z to be considered a peak.
 #' @param min_run Run filter parameter. The minimum length of elution time for a series of signals grouped by 
 #'  m/z to be considered a peak.
+#' @param max_run Run filter parameter. The maximum length of elution time for a series of signals grouped by 
+#'  m/z to be considered a peak.
 #' @param mz_tol m/z tolerance level for the grouping of data points. This value is expressed as the fraction of 
 #'  the m/z value. This value, multiplied by the m/z value, becomes the cutoff level. The recommended value is 
 #'  the machine's nominal accuracy level. Divide the ppm value by 1e6. For FTMS, 1e-5 is recommended.
@@ -66,13 +68,14 @@ load_data <- function(filename,
 remove_noise <- function(filename,
                      min_pres,
                      min_run,
+                     max_run,
                      mz_tol,
                      baseline_correct,
                      baseline_correct_noise_percentile,
                      intensity_weighted,
                      do.plot,
                      cache,
-                     grouping_threshold = Inf) {
+                     grouping_threshold) {
   raw.data <- load_file(filename)
 
   raw.prof <- adaptive.bin(
@@ -107,7 +110,8 @@ remove_noise <- function(filename,
   new.prof <- run_filter(
     newprof,
     min_pres = min_pres,
-    min_run = min_run
+    min_run = min_run,
+    max_run = max_run
   )
 
   if (do.plot) {

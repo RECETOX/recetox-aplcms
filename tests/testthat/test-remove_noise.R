@@ -10,12 +10,14 @@ patrick::with_parameters_test_that(
       input_path,
       min_pres = min_pres,
       min_run = min_run,
+      max_run = max_run,
       mz_tol = mz_tol,
       baseline_correct = 0.0,
       baseline_correct_noise_percentile = 0.05,
       intensity_weighted = intensity_weighted,
       do.plot = FALSE,
-      cache = cache
+      cache = cache,
+      grouping_threshold = Inf
     )
 
     expected_path <- file.path(testdata, "filtered", paste0(.test_name, ".parquet"))
@@ -32,6 +34,7 @@ patrick::with_parameters_test_that(
       mz_tol = 1e-05,
       min_pres = 0.5,
       min_run = 12,
+      max_run = Inf,
       intensity_weighted = FALSE,
       cache = FALSE,
       ci_skip = FALSE
@@ -41,6 +44,7 @@ patrick::with_parameters_test_that(
       mz_tol = 1e-06,
       min_pres = 0.7,
       min_run = 4,
+      max_run = Inf,
       intensity_weighted = TRUE,
       cache = FALSE,
       ci_skip = FALSE
@@ -50,6 +54,7 @@ patrick::with_parameters_test_that(
       mz_tol = 1e-06,
       min_pres = 0.7,
       min_run = 4,
+      max_run = Inf,
       intensity_weighted = TRUE,
       cache = FALSE,
       ci_skip = TRUE
@@ -59,6 +64,7 @@ patrick::with_parameters_test_that(
       mz_tol = 1e-06,
       min_pres = 0.7,
       min_run = 4,
+      max_run = Inf,
       intensity_weighted = TRUE,
       cache = FALSE,
       ci_skip = TRUE
@@ -68,6 +74,7 @@ patrick::with_parameters_test_that(
       mz_tol = 5e-05,
       min_pres = 0.8,
       min_run = 0.2,
+      max_run = Inf,
       intensity_weighted = FALSE,
       cache = FALSE,
       ci_skip = FALSE
@@ -99,6 +106,7 @@ test_that("remove noise works with grouping threshold", {
     input_path,
     min_pres = 0.8,
     min_run = 0.2,
+    max_run = Inf,
     mz_tol = 5e-05,
     baseline_correct = 0.0,
     baseline_correct_noise_percentile = 0.05,
@@ -131,6 +139,7 @@ test_that("remove noise really really works", {
     input_path,
     min_pres = 0.8,
     min_run = 1.2,
+    max_run = Inf,
     mz_tol = 5e-06,
     baseline_correct = 0.0,
     baseline_correct_noise_percentile = 0.05,
@@ -153,6 +162,7 @@ test_that("remove noise on raw with parallel workers works", {
     input_path,
     min_pres = 0.8,
     min_run = 1,
+    max_run = Inf,
     mz_tol = 5e-06,
     baseline_correct = 0.0,
     baseline_correct_noise_percentile = 0.05,

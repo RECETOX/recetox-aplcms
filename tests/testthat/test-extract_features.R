@@ -26,12 +26,14 @@ patrick::with_parameters_test_that(
             filename = filename,
             min_pres = min_pres,
             min_run = min_run,
+            max_run = max_run,
             mz_tol = mz_tol,
             baseline_correct = 0,
             baseline_correct_noise_percentile = 0.05,
             intensity_weighted = intensity_weighted,
             do.plot = FALSE,
-            cache = FALSE
+            cache = FALSE,
+            grouping_threshold = Inf
         )
     })
     
@@ -62,6 +64,7 @@ patrick::with_parameters_test_that(
       mz_tol = 1e-05,
       min_pres = 0.5,
       min_run = 12,
+      max_run = Inf,
       intensity_weighted = FALSE,
       sd_cut = c(0.01, 500),
       sigma_ratio_lim = c(0.01, 100),
@@ -74,6 +77,7 @@ patrick::with_parameters_test_that(
       mz_tol = 5e-05,
       min_pres = 0.7,
       min_run = 0.5,
+      max_run = Inf,
       intensity_weighted = FALSE,
       sd_cut = c(0.05, 10),
       sigma_ratio_lim = c(0, Inf),
