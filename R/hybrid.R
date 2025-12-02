@@ -36,6 +36,7 @@ find_mz_match <- function(sample_mz, known_mz, match_tol_ppm = 5) {
 #' @param rt_tol_relative The retention time tolerance level for peak alignment. The default is NA, which allows the program to search for 
 #'  the tolerance level based on the data.
 #' @return n x 2 matrix containing sample features-known features pairs.
+#' @export
 match_peaks <- function(aligned,
   known_table,
   match_tol_ppm,
@@ -169,6 +170,7 @@ merge_features_and_known_table <- function(
 #'  the tolerance level based on the data.
 #' @return Aligned table with known features.
 #' @import dplyr
+#' @export
 enrich_table_by_known_features <- function(
   aligned,
   known_table,
@@ -213,6 +215,7 @@ enrich_table_by_known_features <- function(
 #'  the tolerance level based on the data.
 #' @param new_feature_min_count The number of profiles a new feature must be present for it to be added to the database.
 #' @return Known table with novel features.
+#' @export
 augment_known_table <- function(
   aligned,
   known_table,

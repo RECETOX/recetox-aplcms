@@ -1,3 +1,16 @@
+#' Draw basic plot with optional label.
+#' @description
+#' This function creates a basic plot with specified x and y ranges, labels, and an optional text label at the center.
+#' @param x A numeric vector specifying the x-axis range.
+#' @param y A numeric vector specifying the y-axis range.
+#' @param xlab A character string for the x-axis label.
+#' @param ylab A character string for the y-axis label.
+#' @param main A character string for the main title of the plot.
+#' @param axes A logical value indicating whether to draw the axes.
+#' @param type A character string specifying the type of plot (default is "n" for no plotting).
+#' @param label A character string for the text label to be placed at the center of the plot (default is NA, meaning no label).
+#' @param cex A numeric value specifying the size of the text label (default is 1.2).
+#' @export
 draw_plot <- function(x = c(-1, 1), y = c(-1, 1),
                       xlab = "", ylab = "",
                       main = "", axes = FALSE,
@@ -8,6 +21,15 @@ draw_plot <- function(x = c(-1, 1), y = c(-1, 1),
   }
 }
 
+#' Plot tolerance level.
+#' @description
+#' This function plots the tolerance level for a given set of x and y values, along with expected y values and a selected index.
+#' @param x A numeric vector of x values.
+#' @param y A numeric vector of y values.
+#' @param exp_y A numeric vector of expected y values.
+#' @param selected An integer index indicating the selected point for drawing a line.
+#' @param main A character string for the main title of the plot.
+#' @export
 tolerance_plot <- function(x, y, exp_y, selected, main) {
   plot(x, y, xlab = "Delta", ylab = "Density", main = main, cex = .25)
   lines(x, exp_y, col = "red")

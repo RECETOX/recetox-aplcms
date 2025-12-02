@@ -30,6 +30,7 @@ compute_breaks_3 <- function(values, tolerance = NA) {
 #' @param max.bins the maximum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too many observations are present.
 #' @param do.plot Indicates whether plot should be drawn.
 #' @return rt_tol_relative the elution time tolerance.
+#' @export
 compute_rt_tol_relative <- function(breaks,
                                     max.num.segments,
                                     aver.bin.size,
@@ -131,6 +132,8 @@ compute_rt_tol_relative <- function(breaks,
 #' @param do.plot Indicates whether plot should be drawn.
 #' @return A matrix with six columns. Every row corresponds to a peak in one of the spectrum. The columns are: m/z, elution time, spread, signal strength,
 #'  spectrum label, and peak group label. The rows are ordered by the median m/z of each peak group, and with each peak group the rows are ordered
+#'  by the elution time.
+#' @export
 find.tol.time <- function(features,
                           number_of_samples,
                           mz_tol_relative,

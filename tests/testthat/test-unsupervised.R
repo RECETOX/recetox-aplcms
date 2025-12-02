@@ -9,7 +9,7 @@ patrick::with_parameters_test_that(
 
     test_files <- sapply(files, function(x) file.path("../testdata/input", x))
 
-    result <- unsupervised(test_files, cluster = get_num_workers())
+    result <- unsupervised(test_files, cluster = 2)
     keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
     actual <- as_tibble(result$recovered_feature_sample_table)
 
