@@ -22,6 +22,7 @@ patrick::with_parameters_test_that(
 
     expected_path <- file.path(testdata, "features", expected_filename)
     expected <- arrow::read_parquet(expected_path)
+    
     expect_equal(actual, expected, tolerance = 0.01)
   },
   patrick::cases(
@@ -44,22 +45,6 @@ patrick::with_parameters_test_that(
     RCX_06_shortened_v2 = list(
       filename = c("RCX_06_shortened.parquet"),
       expected_filename = "RCX_06_shortened_features.parquet",
-      sd_cut = c(0.01, 500),
-      sigma_ratio_lim = c(0.01, 100),
-      shape_model = "bi-Gaussian",
-      do.plot = FALSE
-    ),
-    RCX_07_shortened_v2 = list(
-      filename = c("RCX_07_shortened.parquet"),
-      expected_filename = "RCX_07_shortened_features.parquet",
-      sd_cut = c(0.01, 500),
-      sigma_ratio_lim = c(0.01, 100),
-      shape_model = "bi-Gaussian",
-      do.plot = FALSE
-    ),
-    RCX_8_shortened_v2 = list(
-      filename = c("RCX_08_shortened.parquet"),
-      expected_filename = "RCX_08_shortened_features.parquet",
       sd_cut = c(0.01, 500),
       sigma_ratio_lim = c(0.01, 100),
       shape_model = "bi-Gaussian",

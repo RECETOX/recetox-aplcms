@@ -21,10 +21,7 @@ patrick::with_parameters_test_that(
       sample_names = files
     )
 
-
-
     expected <- read_parquet_files(files, "clusters", paste0("_", input, "_clusters.parquet"))
-
 
     for(i in seq_along(files)) {
       expect_equal(actual$feature_tables[[i]], expected[[i]])
