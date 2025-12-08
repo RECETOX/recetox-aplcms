@@ -95,9 +95,9 @@ compute_rt_tol_relative <- function(breaks,
     # cumulative sum - where density value is greater than estimated density value
     # cutoff is selected where the density of the empirical distribution is >1.5 times the density of the distribution
     cumulative <- cumsum(density_values > 1.5 * estimated_density_values)
-    cumulative_indices <- seq_along(cumulative)
+
     # find last index where density value is greater than estimated density value
-    selected <- min(which(cumulative < cumulative_indices)) - 1
+    selected <- match(1, cumulative)
     # corresponding coordinate is used as rt tolerance
     rt_tol_relative <- points[selected]
 
