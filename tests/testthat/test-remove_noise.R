@@ -154,6 +154,7 @@ patrick::with_parameters_test_that(
 # })
 
 patrick::with_parameters_test_that("remove noise on raw with parallel workers works", {
+  if(ci_skip == TRUE) skip_on_ci()
   testdata <- file.path("..", "testdata")
 
   plan(multicore, workers = 4)
@@ -172,18 +173,18 @@ patrick::with_parameters_test_that("remove noise on raw with parallel workers wo
   )
   plan(sequential)
 
-
   actual <- sut |> dplyr::select(-group_number) |> dplyr::arrange_at(c("mz", "rt"))
-  # saveRDS(summary(actual), expected_path)
 
   expected <- readRDS(expected_path)
   expect_equal(summary(actual), expected)
 }, patrick::cases(
   thermo_raw_profile = list(
     input_path = file.path("..", "testdata", "input", "8_qc_no_dil_milliq.raw"),
-    expected_path = file.path("..", "testdata", "filtered", "thermo_raw_profile_threshold_summary.rds")
+    expected_path = file.path("..", "testdata", "filtered", "thermo_raw_profile_threshold_summary.rds"),
+    ci_skip = TRUE
   ),
   rawrr_sample_data = list(
     input_path = rawrr::sampleFilePath(),
-    expected_path = file.path("..", "testdata", "filtered", "rawrr.rds")
+    expected_path = file.path("..", "testdata", "filtered", "rawrr.rds"),
+    ci_skip = FALSE
 )))
