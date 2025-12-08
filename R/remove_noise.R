@@ -125,12 +125,5 @@ remove_noise <- function(filename,
     )
   }
 
-  # new_rec_tibble <- tibble::tibble(
-  #   mz = new.prof$new_rec[, 1],
-  #   rt = new.prof$new_rec[, 2],
-  #   intensity = new.prof$new_rec[, 3],
-  #   group_number = new.prof$new_rec[, 4]
-  # )
-
   return(new.prof)
 }
