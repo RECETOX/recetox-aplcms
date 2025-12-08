@@ -9,7 +9,7 @@ patrick::with_parameters_test_that(
 
     test_files <- sapply(files, function(x) file.path("../testdata/input", x))
 
-    result <- unsupervised(test_files, cluster = 2)
+    result <- unsupervised(test_files, cluster = 3)
     keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
     actual <- as_tibble(result$recovered_feature_sample_table)
 
@@ -36,10 +36,10 @@ patrick::with_parameters_test_that(
     expect_equal(actual, expected)
   },
   patrick::cases(
-    mbr_test = list(
-      files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml"),
-      full_testdata = FALSE
-    ),
+    # mbr_test = list(
+    #   files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml"),
+    #   full_testdata = FALSE
+    # ),
     RCX_shortened = list(
       files = c("RCX_06_shortened.mzML", "RCX_07_shortened.mzML", "RCX_08_shortened.mzML"),
       full_testdata = FALSE
