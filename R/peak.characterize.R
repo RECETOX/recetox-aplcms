@@ -1,3 +1,20 @@
+#' Internal function: Merge statistics from existing data with new observations.
+#'
+#' @description
+#' This function updates summary statistics (mean, standard deviation, min, max) by combining
+#' existing statistics with new data points. It uses the weighted update formulas to compute
+#' the new mean and pooled standard deviation while maintaining the minimum and maximum values.
+#'
+#' @param mean0 The existing mean value.
+#' @param sd0 The existing standard deviation.
+#' @param min0 The existing minimum value.
+#' @param max0 The existing maximum value.
+#' @param n The number of observations in the existing data.
+#' @param x A vector of new observations to be merged with the existing statistics.
+#'
+#' @return A numeric vector of length 4 containing: updated mean, updated standard deviation,
+#'   updated minimum, and updated maximum.
+#' @export
 merge.new <- function(mean0, sd0, min0, max0, n, x) {
     x <- x[!is.na(x)]
     if (n <= 1) {
@@ -18,6 +35,38 @@ merge.new <- function(mean0, sd0, min0, max0, n, x) {
     return(c(mean1, sd1, min1, max1))
 }
 
+#' Internal function: Update feature characteristics in the known feature table row.
+#'
+#' @description
+#' This function updates a single row in the known feature table by merging existing statistics
+#' with new data from the current experiment. It updates the number of profiles processed,
+#' percent found, m/z range, retention time statistics, and intensity statistics.
+#'
+#' @param existing_row A vector representing an existing row in the known feature table with 18 elements:
+#'   \itemize{
+#'     \item [1-5]: Chemical identifiers and metadata
+#'     \item [6]: m.z - Mean m/z value
+#'     \item [7]: Number_profiles_processed - Total number of profiles processed
+#'     \item [8]: Percent_found - Proportion of profiles where feature was found
+#'     \item [9]: mz_min - Minimum m/z value observed
+#'     \item [10]: mz_max - Maximum m/z value observed
+#'     \item [11]: RT_mean - Mean retention time
+#'     \item [12]: RT_sd - Standard deviation of retention time
+#'     \item [13]: RT_min - Minimum retention time
+#'     \item [14]: RT_max - Maximum retention time
+#'     \item [15]: int_mean(log) - Mean log-intensity
+#'     \item [16]: int_sd(log) - Standard deviation of log-intensity
+#'     \item [17]: int_min(log) - Minimum log-intensity
+#'     \item [18]: int_max(log) - Maximum log-intensity
+#'   }
+#' @param n The number of times the feature was found in previous experiments.
+#' @param m The number of times the feature was found in the current experiment.
+#' @param metadata_row A row from the aligned feature metadata table containing mz, mzmin, and mzmax.
+#' @param rt_row A vector of retention times for the feature across samples in the current experiment.
+#' @param ftrs_row A vector of log-transformed intensities for the feature across samples.
+#'
+#' @return A vector with the updated statistics for all 18 elements of the known feature table row.
+#' @export
 characterize <- function(existing_row, n, m, metadata_row, rt_row, ftrs_row) {
     existing_row[7] <- sum(existing_row[7], length(ftrs_row) - 1, na.rm = T)
     existing_row[8] <- (n + m) / existing_row[7]
