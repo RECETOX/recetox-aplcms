@@ -67,3 +67,54 @@ patrick::with_parameters_test_that(
     )
   )
 )
+
+
+test_that("Unit testing for normix function", {
+
+  # Test 1: small Gaussian mixture
+  x <- seq(0, 6, length.out = 61)
+  y <- 50 * dnorm(x, 2, 0.3) + 30 * dnorm(x, 4, 0.4)
+  that.curve <- cbind(x, y)
+
+  pks <- c(2, 4)
+  vlys <- c(-Inf, 3, Inf)
+  aver_diff <- mean(diff(x))
+  
+  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=1)
+  expected <- cbind(
+    miu = c(2,4),
+    sigma = c(0.3, 0.4),
+    scale = c(50, 30)    
+  )
+  expect_equal(actual, expected, tolerance = 1)
+
+  # Test 2: large Gaussian mixture
+  n <- 2000
+  x <- seq(0, 190, length.out = n)
+  peaks_def <- list(
+    list(mu=10, sigma=3, scale=30),
+    list(mu=34, sigma=2.5, scale=40),
+    list(mu=50, sigma=2.5, scale=45),
+    list(mu=77, sigma=2.2, scale=39),
+    list(mu=101, sigma=3, scale=25),
+    list(mu=124, sigma=2.5, scale=33),
+    list(mu=144, sigma=2.7, scale=41),
+    list(mu=169, sigma=3.3, scale=54)
+  )
+  y <- rep(0, n)
+  for (peak in peaks_def) {
+    y <- y + peak$scale * dnorm(x, peak$mu, peak$sigma)
+  }
+  that.curve <- cbind(x, y)
+  pks <- sapply(peaks_def, function(peak) peak$mu)
+  vlys <- c(-Inf, 22, 42, 64, 87, 113, 134, 155, Inf)
+  aver_diff <- mean(diff(x))
+  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=1)
+  expected <- cbind(
+    miu = sapply(peaks_def, function(peak) peak$mu),
+    sigma = sapply(peaks_def, function(peak) peak$sigma),
+    scale = sapply(peaks_def, function(peak) peak$scale)
+  )
+  expect_equal(actual, expected, tolerance = 1)
+ 
+})
