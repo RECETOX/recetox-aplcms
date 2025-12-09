@@ -64,38 +64,38 @@ patrick::with_parameters_test_that(
   )
 )
 
-# patrick::with_parameters_test_that("remove noise on raw with parallel workers works", {
-#   if(ci_skip == TRUE) skip_on_ci()
-#   testdata <- file.path("..", "testdata")
+patrick::with_parameters_test_that("remove noise on raw with parallel workers works", {
+  if(ci_skip == TRUE) skip_on_ci()
+  testdata <- file.path("..", "testdata")
 
-#   plan(multicore, workers = 4)
-#   sut <- remove_noise(
-#     input_path,
-#     min_pres = 0.8,
-#     min_run = 1,
-#     max_run = Inf,
-#     mz_tol = 5e-06,
-#     baseline_correct = 0.0,
-#     baseline_correct_noise_percentile = 0.05,
-#     intensity_weighted = FALSE,
-#     grouping_threshold = 2,
-#     do.plot = FALSE,
-#     cache = FALSE
-#   )
-#   plan(sequential)
+  plan(multicore, workers = 4)
+  sut <- remove_noise(
+    input_path,
+    min_pres = 0.8,
+    min_run = 1,
+    max_run = Inf,
+    mz_tol = 5e-06,
+    baseline_correct = 0.0,
+    baseline_correct_noise_percentile = 0.05,
+    intensity_weighted = FALSE,
+    grouping_threshold = 2,
+    do.plot = FALSE,
+    cache = FALSE
+  )
+  plan(sequential)
 
-#   actual <- sut |> dplyr::select(-group_number) |> dplyr::arrange_at(c("mz", "rt"))
+  actual <- sut |> dplyr::select(-group_number) |> dplyr::arrange_at(c("mz", "rt"))
 
-#   expected <- readRDS(expected_path)
-#   expect_equal(summary(actual), expected)
-# }, patrick::cases(
-#   thermo_raw_profile = list(
-#     input_path = file.path("..", "testdata", "input", "8_qc_no_dil_milliq.raw"),
-#     expected_path = file.path("..", "testdata", "filtered", "thermo_raw_profile_threshold_summary.rds"),
-#     ci_skip = TRUE
-#   ),
-#   rawrr_sample_data = list(
-#     input_path = rawrr::sampleFilePath(),
-#     expected_path = file.path("..", "testdata", "filtered", "rawrr.rds"),
-#     ci_skip = FALSE
-# )))
+  expected <- readRDS(expected_path)
+  expect_equal(summary(actual), expected)
+}, patrick::cases(
+  thermo_raw_profile = list(
+    input_path = file.path("..", "testdata", "input", "8_qc_no_dil_milliq.raw"),
+    expected_path = file.path("..", "testdata", "filtered", "thermo_raw_profile_threshold_summary.rds"),
+    ci_skip = TRUE
+  ),
+  rawrr_sample_data = list(
+    input_path = rawrr::sampleFilePath(),
+    expected_path = file.path("..", "testdata", "filtered", "rawrr.rds"),
+    ci_skip = FALSE
+)))
