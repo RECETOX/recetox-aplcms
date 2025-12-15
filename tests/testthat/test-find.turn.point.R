@@ -23,14 +23,16 @@ test_that("find.turn.point identifies two-component gaussian mixture", {
   
   result <- find.turn.point(y)
   
+  midpoint <- length(y) / 2
+  
   # Should have exactly two peaks
   expect_equal(length(result$pks), 2)
   # Should have at least one valley between peaks plus boundaries
   expect_true(length(result$vlys) >= 3)
   # First peak should be in the left half
-  expect_true(result$pks[1] < 200)
+  expect_true(result$pks[1] < midpoint)
   # Second peak should be in the right half
-  expect_true(result$pks[2] > 200)
+  expect_true(result$pks[2] > midpoint)
   # Peaks should be ordered
   expect_true(result$pks[1] < result$pks[2])
 })
