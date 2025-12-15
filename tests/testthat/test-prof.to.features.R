@@ -34,14 +34,22 @@ patrick::with_parameters_test_that(
       shape_model = "bi-Gaussian",
       do.plot = FALSE
     ),
-    # RCX_06_shortened_gaussian = list(
-    #   filename = c("RCX_06_shortened.parquet"),
-    #   expected_filename = "RCX_06_shortened_gaussian_features.parquet",
-    #   sd_cut = c(0.01, 500),
-    #   sigma_ratio_lim = c(0.01, 100),
-    #   shape_model = "Gaussian",
-    #   do.plot = FALSE
-    # ),
+    thermo_raw_profile = list(
+      filename = c("thermo_raw_profile.parquet"),
+      expected_filename = "thermo_raw_profile_features.parquet",
+      sd_cut = c(0.1, 1),
+      sigma_ratio_lim = NA,
+      shape_model = "Gaussian",
+      do.plot = FALSE
+    ),
+    RCX_06_shortened_gaussian = list(
+      filename = c("RCX_06_shortened.parquet"),
+      expected_filename = "RCX_06_shortened_gaussian_features.parquet",
+      sd_cut = c(0.01, 500),
+      sigma_ratio_lim = c(0.01, 100),
+      shape_model = "Gaussian",
+      do.plot = FALSE
+    ),
     RCX_06_shortened_v2 = list(
       filename = c("RCX_06_shortened.parquet"),
       expected_filename = "RCX_06_shortened_features.parquet",
@@ -50,8 +58,10 @@ patrick::with_parameters_test_that(
       shape_model = "bi-Gaussian",
       do.plot = FALSE
     )
+   )
   )
-)
+
+
 
 
 test_that("Unit testing for normix function", {
@@ -63,11 +73,10 @@ test_that("Unit testing for normix function", {
 
   pks <- c(2, 4)
   vlys <- c(-Inf, 3, Inf)
-  aver_diff <- mean(diff(x))
   
-  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=1)
+  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
   expected <- cbind(
-    miu = c(2,4),
+    miu = c(2, 4),
     sigma = c(0.3, 0.4),
     scale = c(50, 30)    
   )
@@ -93,13 +102,11 @@ test_that("Unit testing for normix function", {
   that.curve <- cbind(x, y)
   pks <- sapply(peaks_def, function(peak) peak$mu)
   vlys <- c(-Inf, 22, 42, 64, 87, 113, 134, 155, Inf)
-  aver_diff <- mean(diff(x))
-  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=1)
+  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
   expected <- cbind(
     miu = sapply(peaks_def, function(peak) peak$mu),
     sigma = sapply(peaks_def, function(peak) peak$sigma),
     scale = sapply(peaks_def, function(peak) peak$scale)
   )
-  expect_equal(actual, expected, tolerance = 1)
- 
+  expect_equal(actual, expected, tolerance = 1) 
 })
