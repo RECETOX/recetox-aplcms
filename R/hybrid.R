@@ -395,7 +395,7 @@ hybrid <- function(
 
 
   message("**** time correction ****")
-  corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %dopar% correct_time(
+    corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %dopar% correct_time(
     this.feature,
     template_features
   )
@@ -532,3 +532,28 @@ hybrid <- function(
     features_known_table_pairing = as.data.frame(augmented$pairing)
   )
 }
+
+
+# testdata <- file.path(".", "tests", "testdata")
+# files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml") # nolint
+# files = c("RCX_06_shortened.mzML", "RCX_07_shortened.mzML", "RCX_08_shortened.mzML") # nolint # nolint
+# files = c("8_qc_no_dil_milliq.mzml", "21_qc_no_dil_milliq.mzml", "29_qc_no_dil_milliq.mzml") # nolint
+# test_files <- sapply(files, function(x) {
+#    file.path(testdata, "input", x)
+# })
+
+# known_table <- file.path(testdata, "hybrid", "known_table.parquet")
+
+# known_table <- arrow::read_parquet(
+#   file.path(testdata, "hybrid", "known_table.parquet")
+# )
+
+
+# hybrid(
+#   test_files,
+#   known_table,
+#   mz_tol_relative = NA,
+#   rt_tol_relative = NA,
+#   cluster = 1)
+
+# actual <- as_tibble(result$recovered_feature_sample_table)

@@ -90,7 +90,8 @@ register_functions_to_cluster <- function(cluster) {
         'compute_peaks_and_valleys',
         'as_feature_sample_table',
         'check_files',
-        'get_sample_name'
+        'get_sample_name',
+        'draw_plot'
     ))
     snow::clusterEvalQ(cluster, library("dplyr"))
     snow::clusterEvalQ(cluster, library("stringr"))

@@ -133,7 +133,8 @@ semi.sup <- function(
         cl <- snow::makeCluster(n.nodes)
         doParallel::registerDoParallel(cl)
         #clusterEvalQ(cl, source("~/Desktop/Dropbox/1-work/apLCMS_code/new_proc_cdf.r"))
-        snow::clusterEvalQ(cl, library(recetox.aplcms))
+        register_functions_to_cluster(cl)
+
 
         
         features<-foreach::foreach(i=2:length(grps)) %dopar%

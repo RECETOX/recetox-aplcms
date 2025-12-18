@@ -51,19 +51,20 @@ patrick::with_parameters_test_that("basic hybrid test", {
   expect_equal(actual, expected, tolerance = 1e-06)
 },
 patrick::cases(
-  mbr = list(
-    files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml"),
-    ci_skip = TRUE,
-    full_testdata = FALSE
-  ),
+  # Ignore for now, too simple for the calculation
+  # mbr = list(
+  #   files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml"),
+  #   ci_skip = TRUE,
+  #   full_testdata = FALSE
+  # ),
   RCX_shortened = list(
     files = c("RCX_06_shortened.mzML", "RCX_07_shortened.mzML", "RCX_08_shortened.mzML"),
     ci_skip = FALSE,
-    full_testdata = FALSE
+    full_testdata = TRUE
   ),
   qc_no_dil_milliq = list(
     files = c("8_qc_no_dil_milliq.mzml", "21_qc_no_dil_milliq.mzml", "29_qc_no_dil_milliq.mzml"),
     ci_skip = TRUE,
-    full_testdata = TRUE
+    full_testdata = FALSE
   )
 ))

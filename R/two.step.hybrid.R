@@ -116,6 +116,7 @@ extract_pattern_colnames <- function(dataframe, pattern) {
 as_wide_aligned_table <- function(aligned) {
   mz_scale_table <- aligned$rt_crosstab[, c("mz", "rt", "mz_min", "mz_max")]
   aligned <- as_feature_sample_table(
+    metadata = aligned$rt_crosstab[, c("mz", "rt", "mz_min", "mz_max")],
     rt_crosstab = aligned$rt_crosstab,
     int_crosstab = aligned$int_crosstab
   )
@@ -481,7 +482,8 @@ two.step.hybrid <- function(filenames,
                             new.feature.min.count = 2,
                             recover.min.count = 3,
                             intensity.weighted = FALSE,
-                            BIC.factor = 2) {
+                            BIC.factor = 2,
+                            do.plot = FALSE) {
   filenames_batchwise <- bind_batch_label_column(filenames, metadata)
   batches_idx <- unique(metadata$batch)
   batchwise <- new("list")
@@ -493,31 +495,66 @@ two.step.hybrid <- function(filenames,
     files_batch <- dplyr::filter(filenames_batchwise, batch == batch.i)$filename
     message("* processing ", length(files_batch), " samples from batch ", batch.i)
 
-    features <- semi.sup(
-      files = files_batch,
-      folder = work_dir,
-      n.nodes = cluster,
-      known.table = known.table,
-      sd.cut = sd.cut,
-      sigma.ratio.lim = sigma.ratio.lim,
-      component.eliminate = component.eliminate,
-      moment.power = moment.power,
-      min.pres = min.pres,
-      min.run = min.run,
-      min.exp = ceiling(min.within.batch.prop.detect * length(files_batch)),
-      mz.tol = mz.tol,
-      baseline.correct.noise.percentile = baseline.correct.noise.percentile,
-      baseline.correct = baseline.correct,
-      align.mz.tol = align.mz.tol,
-      align.rt.tol = align.rt.tol,
-      max.align.mz.diff = max.align.mz.diff,
-      recover.mz.range = recover.mz.range,
-      recover.rt.range = recover.rt.range,
-      use.observed.range = use.observed.range,
-      shape.model = shape.model,
-      new.feature.min.count = new.feature.min.count,
-      recover.min.count = recover.min.count,
-      sample_names = sample_names
+    # features <- semi.sup(
+    #   files = files_batch,
+    #   folder = work_dir,
+    #   n.nodes = cluster,
+    #   known.table = known.table,
+    #   sd.cut = sd.cut,
+    #   sigma.ratio.lim = sigma.ratio.lim,
+    #   component.eliminate = component.eliminate,
+    #   moment.power = moment.power,
+    #   min.pres = min.pres,
+    #   min.run = min.run,
+    #   min.exp = ceiling(min.within.batch.prop.detect * length(files_batch)),
+    #   mz.tol = mz.tol,
+    #   baseline.correct.noise.percentile = baseline.correct.noise.percentile,
+    #   baseline.correct = baseline.correct,
+    #   align.mz.tol = align.mz.tol,
+    #   align.rt.tol = align.rt.tol,
+    #   max.align.mz.diff = max.align.mz.diff,
+    #   recover.mz.range = recover.mz.range,
+    #   recover.rt.range = recover.rt.range,
+    #   use.observed.range = use.observed.range,
+    #   shape.model = shape.model,
+    #   new.feature.min.count = new.feature.min.count,
+    #   recover.min.count = recover.min.count,
+    #   sample_names = sample_names
+    # )
+
+    features <- hybrid(
+      filenames = files_batch,
+      known_table = known.table,
+      # min_occurrence = 2,
+      min_pres = min.pres,
+      min_run = min.run,
+      # max_run = Inf,
+      mz_tol = mz.tol,
+      baseline_correct = baseline.correct,
+      baseline_correct_noise_percentile = baseline.correct.noise.percentile,
+      shape_model = shape.model,
+      BIC_factor = BIC.factor,
+      peak_estim_method = peak.estim.method,
+      # bandwidth = 0.5,
+      min_bandwidth = min.bw,
+      max_bandwidth = max.bw,
+      sd_cut = sd.cut,
+      sigma_ratio_lim = sigma.ratio.lim,
+      component_eliminate = component.eliminate,
+      moment_power = moment.power,
+      mz_tol_relative = NA,
+      rt_tol_relative = NA,
+      mz_tol_absolute = 0.01,
+      match_tol_ppm = match.tol.ppm,
+      new_feature_min_count = new.feature.min.count,
+      recover_mz_range = recover.mz.range,
+      recover_rt_range = recover.rt.range,
+      use_observed_range = use.observed.range,
+      recover_min_count = recover.min.count,
+      intensity_weighted = intensity.weighted,
+      do_plot = do.plot,
+      cluster = cluster
+      # grouping_threshold = Inf
     )
 
     features$final.ftrs <- features$final.ftrs[order(features$final.ftrs[, 1], features$final.ftrs[, 2]), ]
@@ -538,7 +575,8 @@ two.step.hybrid <- function(filenames,
 
   cluster <- parallel::makeCluster(cluster)
   doParallel::registerDoParallel(cluster)
-  snow::clusterEvalQ(cluster, library(recetox.aplcms))
+  # snow::clusterEvalQ(cluster, library(recetox.aplcms))
+  register_functions_to_cluster(cluster)
 
   extracted_features <- list()
   for (batch_id in batches_idx) {
@@ -633,6 +671,7 @@ two.step.hybrid <- function(filenames,
   features$batchwise_features <- batchwise
   features$known_table <- merge_known_tables(batchwise, batches_idx)
   features$aligned_features <- as_feature_sample_table(
+    metadata = aligned$rt_crosstab[, c("mz", "rt", "mz_min", "mz_max")],
     rt_crosstab = aligned$rt_crosstab,
     int_crosstab = aligned$int_crosstab
   )
@@ -640,3 +679,32 @@ two.step.hybrid <- function(filenames,
   features$final_features <- recovered_features
   return(features)
 }
+
+# files <- c(
+#     # "mbr_test0.mzml",
+#     # "mbr_test1.mzml",
+#     # "mbr_test2.mzml",
+#     # "mbr_test0_copy.mzml"
+#     "RCX_06_shortened.mzML", 
+#     "RCX_07_shortened.mzML", 
+#     "RCX_08_shortened.mzML",
+#     "RCX_06_shortened_copy.mzML" 
+# )
+
+# test_path <- file.path(".", "tests", "testdata")
+# test_files <- sapply(files, function(x) {
+#   file.path(test_path, "input", x)
+# })
+  
+# metadata <- read.table("./tests/testdata/two_step_hybrid_info.csv", sep = ",", header = TRUE)
+
+# expected_final_features <- readRDS("./tests/testdata/final_ftrs.Rda")
+# known_table <- file.path("./tests/testdata", "hybrid", "known_table.parquet")
+
+# two.step.hybrid(
+#   filenames = test_files,
+#   metadata = metadata,
+#   work_dir = tempdir,
+#   known.table = known_table,
+#   cluster = get_num_workers()
+#   )
