@@ -10,7 +10,7 @@ type: software
 authors:
   - given-names: Tianwei
     family-names: Yu
-    email: tianwei.Yu@emory.edu
+    email: tianwei.yu@emory.edu
   - given-names: Helge
     family-names: Hecht
     email: helge.hecht@recetox.muni.cz
