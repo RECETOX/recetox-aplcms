@@ -8,6 +8,9 @@ message: >-
   metadata from this file.
 type: software
 authors:
+  - given-names: Tianwei
+    family-names: Yu
+    email: tianwei.Yu@emory.edu
   - given-names: Helge
     family-names: Hecht
     email: helge.hecht@recetox.muni.cz
@@ -18,6 +21,9 @@ authors:
     email: zargham.ahmad@recetox.muni.cz
     affiliation: 'RECETOX, Masaryk University'
     orcid: "https://orcid.org/0000-0002-6096-224X"
+  - given-names: Kristina
+    family-names: Gomoryova
+    affiliation: 'RECETOX, Masaryk University'
   - given-names: Matej
     family-names: Troják
     email: matej.trojak@recetox.muni.cz
@@ -29,6 +35,6 @@ abstract: >-
   recetox-aplcms is a software tool for feature detection in
   mass spectrometry data. It is based on the apLCMS package.
 license: GPL-2.0
-commit: 110f7ddc79ebd7834c088d068a66260d18d37d2d
-version: v0.10.3
-date-released: '2023-03-27'
+commit: 972255b4135a2fd00004e07b9ce95335a848b13d
+version: v0.14.2
+date-released: '2025-12-19'
