@@ -974,12 +974,8 @@ prof.to.features <- function(profile,
         rt_peak_shape <- bigauss.mix(rt_profile, sigma_ratio_lim = sigma_ratio_lim, bw = bw, moment_power = moment_power, peak_estim_method = peak_estim_method, eliminate = component_eliminate, BIC_factor = BIC_factor)$param[, c(1, 2, 3, 5)]
       }
 
-      if (is.null(rt_peak_shape)) {  # check if no peaks were found
+      if (is.null(nrow(rt_peak_shape))) {  
         peak_parameters <- rbind(peak_parameters, c(median(feature_group[, "mz"]), rt_peak_shape))
-      }
-      else if (!is.matrix(rt_peak_shape)) {  # check if only one peak was found
-        rt_diff <- abs(feature_group[, "rt"]) - rt_peak_shape[1]
-        peak_parameters <- rbind(peak_parameters, c(mean(feature_group[which(rt_diff == min(rt_diff)), 1]), rt_peak_shape))
       }
       else {
         for (m in 1:nrow(rt_peak_shape))  # multiple peaks

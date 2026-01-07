@@ -22,8 +22,10 @@ patrick::with_parameters_test_that(
 
     expected_path <- file.path(testdata, "features", expected_filename)
     expected <- arrow::read_parquet(expected_path)
-    
-    expect_equal(actual, expected, tolerance = 0.01)
+
+
+
+    expect_equal(dplyr::arrange(actual, dplyr::pick(area)), dplyr::arrange(expected, dplyr::pick(area)), tolerance = 0.01) # sort by area to avoid switched values
   },
   patrick::cases(
     mbr_test0 = list(
