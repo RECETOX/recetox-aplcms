@@ -1,3 +1,10 @@
+update_expected <- function(input, files, actual) {
+  testdata <- file.path("..", "testdata")
+  for(i in seq_along(files)) {
+    arrow::write_parquet(actual$feature_tables[[i]], file.path(testdata, "clusters", paste0(files[i], "_", input ,"_clusters.parquet")))
+  }
+}
+
 patrick::with_parameters_test_that(
   "test compute_clusters",
   {
@@ -15,11 +22,7 @@ patrick::with_parameters_test_that(
       sample_names = files
     )
 
-    # for(i in 1:3) {
-    #   arrow::write_parquet(actual$feature_tables[[i]], file.path(testdata, "clusters", paste0(files[i], "_", input ,"_clusters.parquet")))
-    # }
     expected <- read_parquet_files(files, "clusters", paste0("_", input, "_clusters.parquet"))
-
 
     for(i in seq_along(files)) {
       expect_equal(actual$feature_tables[[i]], expected[[i]])
@@ -36,7 +39,7 @@ patrick::with_parameters_test_that(
       mz_max_diff = 10 * 1e-05,
       mz_tol_absolute = 0.01,
       expected_mz_tol_relative = 6.849039e-06,
-      expected_rt_tol_relative = 2.894385
+      expected_rt_tol_relative = 36.9
     ),
     RCX_shortened_adjusted = list(
       files = c("RCX_06_shortened", "RCX_07_shortened", "RCX_08_shortened"),
@@ -44,7 +47,7 @@ patrick::with_parameters_test_that(
       mz_max_diff = 10 * 1e-05,
       mz_tol_absolute = 0.01,
       expected_mz_tol_relative = 6.856763e-06,
-      expected_rt_tol_relative = 1.93185408267324
+      expected_rt_tol_relative = 0.82
     )
   )
 )

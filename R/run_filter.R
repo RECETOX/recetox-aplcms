@@ -76,11 +76,13 @@ label_val_to_keep <- function(min_run, timeline, min_pres, this_times, times) {
 #' @param min_pres Run filter parameter. The minimum proportion of presence in the time period for a series of signals grouped
 #' by m/z to be considered a peak.
 #' @param min_run Run filter parameter. The minimum length of elution time for a series of signals grouped by m/z to be considered a peak.
+#' @param max_run Run filter parameter. The maximum length of elution time for a series of signals grouped by m/z to be considered a peak.
 #' @return A list is returned. new_rec - The matrix containing m/z, retention time, intensity, and EIC label as columns after applying the run filter.
 #' @export
 run_filter <- function(newprof,
                        min_pres,
-                       min_run) {
+                       min_run,
+                       max_run) {
   # ordering retention time values
   # labels <- newprof$rt
   # times <- unique(labels)
@@ -104,8 +106,9 @@ run_filter <- function(newprof,
   # ordered by mz and grps data that are inside unigrps
   newprof <- dplyr::filter(newprof, grps %in% uniq_grp) |> dplyr::arrange(grps, mz)
 
+  # compute elution profile length for each EIC group, and filter accordingly
   results <- dplyr::group_by(newprof, grps) |>
-    dplyr::filter(n() >= min_count_run && abs(span(rt)) >= min_run) |>
+    dplyr::filter(n() >= round(span(rt) * min_pres * scan_rate) && span(rt) >= min_run && span(rt) <= max_run) |>
     dplyr::ungroup() |>
     dplyr::rename(group_number = grps)
 
