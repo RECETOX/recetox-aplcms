@@ -358,9 +358,11 @@ compute_pks_vlys_rt <- function(features, times, bandwidth, target_rt, recover_m
 #'   \item label - float - Interpolated retention time value.
 #'   \item sigma - float - Standard deviation of retention times
 #' @export
-compute_mu_sc_std <- function(features, aver_diff) {
-  x <- features$rt
-  y <- features$intensities
+compute_mu_sc_std <- function(rt_profile, aver_diff) {
+  # x <- features$rt
+  # y <- features$intensities
+  x <- rt_profile[, 'base.curve']
+  y <- rt_profile[, 'intensity']
 
   sum_y <- sum(y)
   miu <- sum(x * y) / sum_y  # weighted mean of retention time
