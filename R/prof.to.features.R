@@ -302,7 +302,7 @@ compute_dx <- function(x, apply_mask=TRUE) {
 
 #' @description
 #' Find base.curve RTs that lay within RT range of the whole feature table and append intensities to these RTs.
-#' @param profile Profile table with shape number-of-features*4. The table contains following columns:
+#' @param profile Profile table with shape number-of-features*4 in dataframe.The table contains following columns:
 #' \itemize{
 #'   \item mz - float - mass-to-charge ratio of feature
 #'   \item rt - float - retention time of features
@@ -314,10 +314,17 @@ compute_dx <- function(x, apply_mask=TRUE) {
 #' @export
 compute_chromatographic_profile <- function(profile, base.curve) {
   rt_range <- range(profile[, "rt"])
-  rt_profile <- base.curve[dplyr::between(base.curve[, "base.curve"], min(rt_range), max(rt_range)), ]
+  rt_profile <- as.data.frame(base.curve)[dplyr::between(base.curve[, "base.curve"], min(rt_range), max(rt_range)), ]  # list
   rt_profile[rt_profile[, "base.curve"] %in% profile[, "rt"], 2] <- profile[, "intensity"]
   colnames(rt_profile)[2] <- "intensity"
-  return (as.data.frame(rt_profile))  # fix to dataframe 
+  return (rt_profile)  # fix to dataframe 
+
+  # rt_profile <- as.data.frame(base.curve) |>
+  #   setNames(c("base.curve", "intensity")) |>
+  #   dplyr::filter(dplyr::between(base.curve, min(rt_range), max(rt_range)))  
+  # # Update intensities where RT matches profile
+  # matching_idx <- match(rt_profile[, "base.curve"], profile[, "rt"])
+  # rt_profile[!is.na(matching_idx), "intensity"] <- profile[na.omit(matching_idx), "intensity"]
 }
 
 #' @description
@@ -649,7 +656,33 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
 }
 
 #' @description
+#' helper functions for normix
+erase <- function(to.erase, l, miu, sigma, sc, w) {
+  l <- l - length(to.erase)
+  miu <- miu[-to.erase]
+  sigma <- sigma[-to.erase]
+  sc <- sc[-to.erase]
+  w <- w[-to.erase, ]
+  return(list(l = l, miu = miu, sigma = sigma, sc = sc, w = w))
+}
+
+save_mu_sc_std <- function(rt_int_list_this, aver_diff, miu=NULL, sigma=NULL, sc=NULL, m=NULL) {
+  mu_sc_std <- compute_mu_sc_std(rt_int_list_this, aver_diff)
+  if (is.null(m) | is.null(miu) | is.null(sigma) | is.null(sc)) {
+    miu <- mu_sc_std$miu
+    sigma <- mu_sc_std$sigma    
+    sc <- mu_sc_std$sc
+  }  else {
+    miu[m] <- mu_sc_std$miu
+    sigma[m] <- mu_sc_std$sigma
+    sc[m] <- mu_sc_std$sc
+  }
+  return(list(miu = miu, sigma = sigma, sc = sc))
+}
+
+#' @description
 #' Reevaluate parameters of chromatographic gaussian curves.
+#' Estimates Gaussian Mixture Model parameters with Expectation-Maximization (EM) algorithm.
 #' @param that.curve Dataframe that stores RTs and intensities of features.
 #' @param pks A vector of sorted RT-peak values at which the kernel estimate was computed.
 #' @param vlys A vector of sorted RT-valley values at which the kernel estimate was computed.
@@ -669,15 +702,7 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
   x <- rt_profile[, 'base.curve']
   y <- rt_profile[, 'intensity']
 
-  if (length(pks) == 1) {
-    mu_sc_std <- compute_mu_sc_std(rt_profile, aver_diff)
-    miu <- mu_sc_std$label
-    sigma <- mu_sc_std$sigma    
-    sc <- mu_sc_std$intensity
-    rec <- matrix(c(miu, sigma, sc), nrow = 1, dimnames=list(NULL, c("miu", "sigma", "scale")))
-    return(rec)
-  } 
-  else {
+  if (length(pks) > 1) {
     pks <- sort(pks)
     vlys <- sort(vlys)
     l <- length(pks)
@@ -687,10 +712,7 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
     for (m in 1:l)
     {
       # this pattern occurs multiple times in other scripts
-      this.low <- max(vlys[vlys <= pks[m]])
-      this.high <- min(vlys[vlys >= pks[m]])
-
-      indices <- dplyr::between(x, this.low, this.high)
+      indices <- dplyr::between(x, max(vlys[vlys <= pks[m]]), min(vlys[vlys >= pks[m]]))
       this.x <- x[indices] ###
       this.y <- y[indices] ###
 
@@ -700,56 +722,41 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
         sc[m] <- 1
       } else {
         rt_int_list_this <- data.frame(base.curve = this.x, intensity = this.y) ###
-        mu_sc_std <- compute_mu_sc_std(rt_int_list_this, aver_diff)
-        miu[m] <- mu_sc_std$label
-        sc[m] <- mu_sc_std$intensity
-        sigma[m] <- mu_sc_std$sigma
+        list2env(save_mu_sc_std(rt_int_list_this, aver_diff, miu, sigma, sc, m), environment())
       }
     }
 
     to.erase <- which(is.na(miu) | is.na(sigma) | sigma == 0 | is.na(sc))
     if (length(to.erase) > 0) {
-       l <- l - length(to.erase)
-       miu <- miu[-to.erase]
-       sigma <- sigma[-to.erase]
-       sc <- sc[-to.erase]
-       w <- w[-to.erase, ]
-       # return if l is zero - all peak parameters are erased
-       if (l == 0) {
-         rec <- matrix(numeric(0), nrow = 0, ncol = 3)
-         colnames(rec) <- c("miu", "sigma", "scale")
-         return(rec)
+      list2env(erase(to.erase, l, miu, sigma, sc, w), environment())
+      # return if l is zero - all peak parameters are erased
+      if (l == 0) {
+        rec <- matrix(numeric(0), nrow = 0, ncol = 3)
+        colnames(rec) <- c("miu", "sigma", "scale")
+        return(rec)
       }
     }
 
-    direc <- 1
     diff <- 1000
     iter <- 0
 
     while (diff > 0.05 & iter < max.iter) {
       iter <- iter + 1
       if (l == 1) {
-        mu_sc_std <- compute_mu_sc_std(rt_profile, aver_diff)
-        miu <- mu_sc_std$label
-        sc <- mu_sc_std$intensity
-        sigma <- mu_sc_std$sigma
+        list2env(save_mu_sc_std(rt_profile, aver_diff), environment())
         break
       }
+      
       miu.0 <- miu
-      sigma.0 <- sigma
-      sc.0 <- sc
-
       all.w <- y * 0
+
       for (m in 1:l)
       {
-        all.w <- all.w + dnorm(x, mean = miu[m], sd = sigma[m]) * sc[m]
+        w[m, ] <- dnorm(x, mean = miu[m], sd = sigma[m]) * sc[m]
+        all.w <- all.w + w[m, ]
       }
 
-      # when l is zero the iteration goes from 1 to 0 znd results in "index out of bound" error
-      for (m in 1:l)
-      {
-        w[m, ] <- dnorm(x, mean = miu[m], sd = sigma[m]) * sc[m] / all.w
-      }
+      w <- t(apply(w, 1, function(x) x / all.w))
 
       if (sum(is.na(w)) > 0) {
         break
@@ -759,10 +766,7 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
       {
         this.y <- y * w[m, ] ###
         rt_int_list_this <- data.frame(base.curve = x, intensity = this.y) ###
-        mu_sc_std <- compute_mu_sc_std(rt_int_list_this, aver_diff)
-        miu[m] <- mu_sc_std$label
-        sc[m] <- mu_sc_std$intensity
-        sigma[m] <- mu_sc_std$sigma
+        list2env(save_mu_sc_std(rt_int_list_this, aver_diff, miu, sigma, sc, m), environment())
 
         if (sigma[m] == 0) {
           sc[m] <- NA
@@ -770,24 +774,16 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
       }
       diff <- sum((miu.0 - miu)^2)
 
-      www <- w
-      for (m in 1:l)
-      {
-        www[m, ] <- www[m, ] * y
-      }
+      www <- t(apply(w, 1, function(row) row*y))
       www <- apply(www, 1, sum)
-      www[which(is.na(sc))] <- 0
+      www[is.na(sc)] <- 0
       www <- www / sum(www)
-      max.erase <- max(1, round(l / 5))
 
+      max.erase <- max(1, round(l / 5))
       to.erase <- which(www <= min(ignore, www[order(www, na.last = FALSE)[max.erase]]))
 
       if (length(to.erase) > 0) {
-        l <- l - length(to.erase)
-        miu <- miu[-to.erase]
-        sigma <- sigma[-to.erase]
-        sc <- sc[-to.erase]
-        w <- w[-to.erase,]
+        list2env(erase(to.erase, l, miu, sigma, sc, w), environment())
         if (l == 0) {
           rec <- matrix(numeric(0), nrow = 0, ncol = 3)
           colnames(rec) <- c("miu", "sigma", "scale")
@@ -796,14 +792,18 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
         diff <- 1000
       }
     }
-  }
-  l <- length(miu)
-  if (l == 1) {
-    rec <- matrix(c(miu, sigma, sc), nrow = 1)
+  
+  if (length(miu) == 1) {
+    rec <- matrix(c(miu, sigma, sc), nrow = 1, dimnames=list(NULL, c("miu", "sigma", "scale")))
   } else {
     rec <- cbind(miu, sigma, sc)
+    colnames(rec) <- c("miu", "sigma", "scale")
   }
-  colnames(rec) <- c("miu", "sigma", "scale")
+  }
+  else if (length(pks) == 1) {
+    list2env(save_mu_sc_std(rt_profile, aver_diff), environment())
+    rec <- matrix(c(miu, sigma, sc), nrow = 1, dimnames=list(NULL, c("miu", "sigma", "scale")))
+  }
   return(rec)
 }
 
@@ -924,14 +924,14 @@ prof.to.features <- function(profile,
                              do.plot) {
   validate_model_method_input(shape_model, peak_estim_method)
 
-  profile <- preprocess_profile(profile)
+  profile <- preprocess_profile(profile)  # returns dframe with columns: mz, rt, intensity, group_number
 
   bws <- preprocess_bandwidth(min_bandwidth, max_bandwidth, profile)
   min_bandwidth <- bws[["min_bandwidth"]]
   max_bandwidth <- bws[["max_bandwidth"]]
 
   # base.curve <- compute_base_curve(profile[, "rt"])
-  base.curve <- sort(unique(profile$rt))
+  base.curve <- sort(unique(profile$rt)) # rt values
   base.curve <- cbind(base.curve, base.curve * 0)
   
   all_diff_mean_rts <- compute_delta_rt(base.curve[, 1]) # computes diff of mean values from consecutive values 
@@ -964,7 +964,7 @@ prof.to.features <- function(profile,
         bw <- c(max(min_bandwidth, bw[1] / 2), bw)
       }
 
-      rt_profile <- compute_chromatographic_profile(feature_group, base.curve)
+      rt_profile <- compute_chromatographic_profile(feature_group, base.curve)  # returns df with columns: base.curve, intensity
       if (shape_model == "Gaussian") {
         rt_peak_shape <- compute_gaussian_peak_shape(rt_profile, bw, component_eliminate, BIC_factor, aver_diff)
       } else {

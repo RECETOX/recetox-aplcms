@@ -373,10 +373,10 @@ compute_mu_sc_std <- function(rt_profile, aver_diff) {
   } else {
     fitted <- dnorm(x, mean = miu, sd = sigma)
     selection <- y > 0 & fitted / dnorm(miu, mean = miu, sd = sigma) > 1e-2
-    sc <- exp(sum(fitted[selection]^2 * log(y[selection] / fitted[selection]) / sum(fitted[selection]^2)))
+    sc <- exp(sum(fitted[selection]^2 * log(y[selection] / fitted[selection]) / sum(fitted[selection]^2)))  # why this formula?
   }
 
-  return(list(intensity = sc, label = miu, sigma = sigma))
+  return(list(miu = miu, sigma = sigma, sc = sc))
 }
 
 #' Compute the rectangle around recovered features given that enough peaks are present.
