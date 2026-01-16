@@ -656,7 +656,7 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
 }
 
 #' @description
-#' helper functions for normix
+#' helper functions for normix that erase and save peak parameters
 erase <- function(to.erase, l, miu, sigma, sc, w) {
   l <- l - length(to.erase)
   miu <- miu[-to.erase]
@@ -666,8 +666,8 @@ erase <- function(to.erase, l, miu, sigma, sc, w) {
   return(list(l = l, miu = miu, sigma = sigma, sc = sc, w = w))
 }
 
-save_mu_sc_std <- function(rt_int_list_this, aver_diff, miu=NULL, sigma=NULL, sc=NULL, m=NULL) {
-  mu_sc_std <- compute_mu_sc_std(rt_int_list_this, aver_diff)
+save_mu_sc_std <- function(rt_profile, aver_diff, miu=NULL, sigma=NULL, sc=NULL, m=NULL) {
+  mu_sc_std <- compute_mu_sc_std(rt_profile, aver_diff)
   if (is.null(m) | is.null(miu) | is.null(sigma) | is.null(sc)) {
     miu <- mu_sc_std$miu
     sigma <- mu_sc_std$sigma    
@@ -701,109 +701,96 @@ save_mu_sc_std <- function(rt_int_list_this, aver_diff, miu=NULL, sigma=NULL, sc
 normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff) {
   x <- rt_profile[, 'base.curve']
   y <- rt_profile[, 'intensity']
+  colnames <- c("miu", "sigma", "scale")
 
-  if (length(pks) > 1) {
-    pks <- sort(pks)
-    vlys <- sort(vlys)
-    l <- length(pks)
-    miu <- sigma <- sc <- pks
-    w <- matrix(0, nrow = length(pks), ncol = length(x))
+  if (length(pks) == 0) { # no peaks, does it happen?
+    rec <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
+    return(rec)
+  } 
 
-    for (m in 1:l)
+  # check for 1 peak case
+  if (length(pks) == 1) {  
+    list2env(save_mu_sc_std(rt_profile, aver_diff), environment())
+    rec <- matrix(c(miu, sigma, sc), nrow = 1, dimnames=list(NULL, colnames))
+    return(rec)
+  }
+
+  pks <- sort(pks)
+  vlys <- sort(vlys)
+  l <- length(pks)
+  miu <- sigma <- sc <- pks
+  w <- matrix(0, nrow = length(pks), ncol = length(x))  # weight matrix, #peaks x #RT points
+
+  # predict initial parameters for each peak by rt and intensity values between neighbouring valleys
+  for (m in 1:l)  
+  {
+    indices <- dplyr::between(x, max(vlys[vlys <= pks[m]]), min(vlys[vlys >= pks[m]]))
+
+    if (length(x[indices]) == 0 | length(y[indices]) == 0) {  # no data points in this region
+      miu[m] <- NA
+      sigma[m] <- NA
+      sc[m] <- 1
+    } else {
+      rt_profile_filt <- data.frame(base.curve = x[indices], intensity = y[indices])
+      list2env(save_mu_sc_std(rt_profile_filt, aver_diff, miu, sigma, sc, m), environment())
+    }
+  }
+
+  # erase invalid peaks, return record if no peaks left
+  to.erase <- which(is.na(miu) | is.na(sigma) | sigma == 0 | is.na(sc))  # maybe check to see if compute_mu_sc_std can return NA or 0
+  if (length(to.erase) > 0) {
+    list2env(erase(to.erase, l, miu, sigma, sc, w), environment())
+    if (l == 0) {
+      rec <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
+      return(rec)
+    }
+  }
+
+  diff <- 1000
+  counter <- 0
+  # expectation-maximization loop
+  while (diff > 0.05 & counter < max.iter) {
+    counter <- counter + 1
+    if (l == 1) {
+      list2env(save_mu_sc_std(rt_profile, aver_diff), environment())
+      break
+    }
+    
+    miu.previous <- miu    
+
+    w <- t(sapply(1:l, function(m) dnorm(x, mean = miu[m], sd = sigma[m]) * sc[m])) # estimated Gaussian distributions (y values) for each peak (component) at each RT point
+    all.w <- y * 0
+    for (m in 1:l) all.w <- all.w + w[m, ]  # total estimated intensity (Gaussian curve) at each RT point      
+    w <- t(apply(w, 1, function(x) x / all.w)) # normalize by total estimated intensity to get weights for each component at each RT point
+    
+    if (any(is.na(w))) break
+
+    for (m in 1:l)  # estimate new parameters for each peak with weighted intensities
     {
-      # this pattern occurs multiple times in other scripts
-      indices <- dplyr::between(x, max(vlys[vlys <= pks[m]]), min(vlys[vlys >= pks[m]]))
-      this.x <- x[indices] ###
-      this.y <- y[indices] ###
-
-      if (length(this.x) == 0 | length(this.y) == 0) { ###
-        miu[m] <- NaN
-        sigma[m] <- NaN
-        sc[m] <- 1
-      } else {
-        rt_int_list_this <- data.frame(base.curve = this.x, intensity = this.y) ###
-        list2env(save_mu_sc_std(rt_int_list_this, aver_diff, miu, sigma, sc, m), environment())
-      }
+      rt_profile_weighted <- data.frame(base.curve = x, intensity = y * w[m, ])  # estimated Gaussian parameters for weighted intensities at each RT point
+      list2env(save_mu_sc_std(rt_profile_weighted, aver_diff, miu, sigma, sc, m), environment())  # save params back to miu, sigma, sc
+      if (sigma[m] == 0) sc[m] <- NA   # why?
     }
 
-    to.erase <- which(is.na(miu) | is.na(sigma) | sigma == 0 | is.na(sc))
-    if (length(to.erase) > 0) {
-      list2env(erase(to.erase, l, miu, sigma, sc, w), environment())
-      # return if l is zero - all peak parameters are erased
+    diff <- sum((miu.previous - miu)^2)  # Euclidean distance between old and new mean values
+
+    www <- colSums(apply(w, 1, function(row) row*y))  # total sum of weighted intensities at each RT point for each peak (component)
+    www[is.na(sc)] <- 0  # filter if scale is NA
+    www <- www / sum(www)  # normalise by total sum of weighted intensities
+
+    max.erase <- max(1, round(l / 5))
+    to.erase <- which(www <= min(ignore, www[order(www, na.last = FALSE)[max.erase]]))
+    
+    if (length(to.erase) > 0) {  # erase invalid peaks, return record if no peaks left
+      list2env(erase(to.erase, l, miu, sigma, sc, w), environment())  # save params to environment
       if (l == 0) {
-        rec <- matrix(numeric(0), nrow = 0, ncol = 3)
-        colnames(rec) <- c("miu", "sigma", "scale")
+        rec <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
         return(rec)
       }
+      diff <- 1000
     }
-
-    diff <- 1000
-    iter <- 0
-
-    while (diff > 0.05 & iter < max.iter) {
-      iter <- iter + 1
-      if (l == 1) {
-        list2env(save_mu_sc_std(rt_profile, aver_diff), environment())
-        break
-      }
-      
-      miu.0 <- miu
-      all.w <- y * 0
-
-      for (m in 1:l)
-      {
-        w[m, ] <- dnorm(x, mean = miu[m], sd = sigma[m]) * sc[m]
-        all.w <- all.w + w[m, ]
-      }
-
-      w <- t(apply(w, 1, function(x) x / all.w))
-
-      if (sum(is.na(w)) > 0) {
-        break
-      }
-
-      for (m in 1:l)
-      {
-        this.y <- y * w[m, ] ###
-        rt_int_list_this <- data.frame(base.curve = x, intensity = this.y) ###
-        list2env(save_mu_sc_std(rt_int_list_this, aver_diff, miu, sigma, sc, m), environment())
-
-        if (sigma[m] == 0) {
-          sc[m] <- NA
-        }
-      }
-      diff <- sum((miu.0 - miu)^2)
-
-      www <- t(apply(w, 1, function(row) row*y))
-      www <- apply(www, 1, sum)
-      www[is.na(sc)] <- 0
-      www <- www / sum(www)
-
-      max.erase <- max(1, round(l / 5))
-      to.erase <- which(www <= min(ignore, www[order(www, na.last = FALSE)[max.erase]]))
-
-      if (length(to.erase) > 0) {
-        list2env(erase(to.erase, l, miu, sigma, sc, w), environment())
-        if (l == 0) {
-          rec <- matrix(numeric(0), nrow = 0, ncol = 3)
-          colnames(rec) <- c("miu", "sigma", "scale")
-          return(rec)
-        }
-        diff <- 1000
-      }
-    }
-  
-  if (length(miu) == 1) {
-    rec <- matrix(c(miu, sigma, sc), nrow = 1, dimnames=list(NULL, c("miu", "sigma", "scale")))
-  } else {
-    rec <- cbind(miu, sigma, sc)
-    colnames(rec) <- c("miu", "sigma", "scale")
   }
-  }
-  else if (length(pks) == 1) {
-    list2env(save_mu_sc_std(rt_profile, aver_diff), environment())
-    rec <- matrix(c(miu, sigma, sc), nrow = 1, dimnames=list(NULL, c("miu", "sigma", "scale")))
-  }
+  rec <- cbind('miu' = miu, 'sigma' = sigma, 'scale' = sc)
   return(rec)
 }
 
