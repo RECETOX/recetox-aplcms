@@ -85,8 +85,7 @@ preprocess_profile <- function(profile) {
 #' @export
 compute_gaussian_peak_shape <- function(rt_profile, bw, component_eliminate, BIC_factor, aver_diff) {
   rt_peak_shape <- normix.bic(rt_profile, bw = bw, eliminate = component_eliminate, BIC_factor = BIC_factor, aver_diff = aver_diff)$param
-  # check for NA values in the peak shape parameters
-  if (sum(is.na(rt_peak_shape)) > 0) {
+  if (any(is.na(rt_peak_shape))) {
     return(NULL)
   }
   if (nrow(rt_peak_shape) == 1) {
@@ -531,16 +530,16 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
   rt_profile_unfiltered <- rt_profile
   rt_profile <- data.frame(rt_profile) |> dplyr::filter(intensity > 1e-5) |> dplyr::arrange(base.curve)
 
-  for (bw.n in length(all.bw):1)
+  for (ind in length(all.bw):1)
   {
-    bw <- all.bw[bw.n]
+    bw <- all.bw[ind]
     this.smooth <- ksmooth(rt_profile_unfiltered[, "base.curve"], rt_profile_unfiltered[, "intensity"], kernel = "normal", bandwidth = bw)
     turns <- find.turn.point(this.smooth$y)
     pks <- this.smooth$x[turns$pks]
     vlys <- c(-Inf, this.smooth$x[turns$vlys], Inf)
 
-    smoother.pk.rec[[bw.n]] <- pks
-    smoother.vly.rec[[bw.n]] <- vlys
+    smoother.pk.rec[[ind]] <- pks
+    smoother.vly.rec[[ind]] <- vlys
     if (length(pks) != last.num.pks) {
       last.num.pks <- length(pks)
       l <- length(rt_profile[, "base.curve"])
@@ -634,12 +633,12 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
       rss <- sum((rt_profile[, "intensity"] - apply(fit, 1, sum))^2)
       l <- length(rt_profile[, "base.curve"])
       bic <- l * log(rss / l) + 4 * length(m) * log(l) * BIC_factor
-      results[[bw.n]] <- cbind(m, s1, s2, delta, area)
-      bic.rec[bw.n] <- bic
+      results[[ind]] <- cbind(m, s1, s2, delta, area)
+      bic.rec[ind] <- bic
     } else {
-      results[[bw.n]] <- NA
-      bic.rec[bw.n] <- Inf
-      results[[bw.n]] <- results[[bw.n + 1]]
+      results[[ind]] <- NA
+      bic.rec[ind] <- Inf
+      results[[ind]] <- results[[ind + 1]]
     }
   }
   sel <- which(bic.rec == min(bic.rec, na.rm = TRUE))
@@ -815,61 +814,60 @@ normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminat
 
   results <- new("list")
   all.bw <- bw[order(bw)] # order bandwidths from small to large
-  smoother.record <- setNames(vector("list", length(all.bw)), all.bw)  # record smoothed peaks and valleys
-  bic.record <- all.bw  # record BIC for each bandwidth
-
-  if (do.plot) {
-    par(mfrow = c(ceiling(length(all.bw) / 2), 2))
-    par(mar = c(1, 1, 1, 1))
-  }
-
+  record.bic <- all.bw  # record BIC for each bandwidth
+  record.smoother <- setNames(vector("list", length(all.bw)), all.bw)  # record smoothed peaks and valleys
+  
   last.num.pks <- Inf
 
-  for (bw.n in length(all.bw):1)
-  {
-    bw <- all.bw[bw.n]
+  for (ind in length(all.bw):1)
+  { 
+    # kernel smoothing, peak and valley detection
+    bw <- all.bw[ind]
     this.smooth <- ksmooth(x, y, kernel = "normal", bandwidth = bw)
     turns <- find.turn.point(this.smooth$y)
     pks <- this.smooth$x[turns$pks]
     vlys <- c(-Inf, this.smooth$x[turns$vlys], Inf)
-    smoother.record[[as.character(bw)]] <- list(pks = pks, vlys = vlys)
+    record.smoother[[as.character(bw)]] <- list(pks = pks, vlys = vlys)
 
     if (length(pks) != last.num.pks) {  # why do we compare with inf?
-      last.num.pks <- length(pks)  
+      last.num.pks <- length(pks) # what's this 
+      # estimate gaussian mixture parameters for each peak
       gaussian.est <- normix(rt_profile, pks = pks, vlys = vlys, ignore = eliminate, max.iter = max.iter, aver_diff = aver_diff)  # returns matrix with columns: miu, sigma, scale or vector
 
-      if (nrow(gaussian.est) == 0) {        # all the peaks were removed, no parameters to record - change dtype returned
-        results[[bw.n]] <- NA  # no valid model, set params to NA
-        bic.record[bw.n] <- Inf  # no valid model, set BIC to Inf
-        next # go to next bandwidth
+      if (nrow(gaussian.est) == 0) {     # no valid model - change dtype returned
+        results[[ind]] <- NA  
+        record.bic[ind] <- Inf  
+        next  # next bandwidth
       }
+      # compute total fitted values
       total.fit <- x * 0
-      for (i in 1:nrow(gaussian.est))
-      {
-        total.fit <- total.fit + dnorm(x, mean = gaussian.est[i, 1], sd = gaussian.est[i, 2]) * gaussian.est[i, 3]
-      }
+      for (i in 1:nrow(gaussian.est)) total.fit <- total.fit + dnorm(x, mean = gaussian.est[i, 1], sd = gaussian.est[i, 2]) * gaussian.est[i, 3]
 
       if (do.plot) {
+        par(mfrow = c(ceiling(length(all.bw) / 2), 2))
+        par(mar = c(1, 1, 1, 1))
         plot_normix_bic(x, y, bw, gaussian.est)
       }
 
+      # compute BIC
       rss <- sum((y - total.fit)^2)  # is BIC best criterion? 
       bic <- length(x) * log(rss / length(x)) + 3 * nrow(gaussian.est) * log(length(x)) * BIC_factor
-      results[[bw.n]] <- gaussian.est
-      bic.record[bw.n] <- bic
-    } else {        
-      results[[bw.n]] <- NA  # results[[bw.n]] <- results[[bw.n + 1]]  # reuse previous results, but problematic in 1st iteration/largest bandwidth
-      bic.record[bw.n] <- Inf
+      results[[ind]] <- gaussian.est
+      record.bic[ind] <- bic
+    } 
+    else {        
+      results[[ind]] <- NA  # results[[ind]] <- results[[ind + 1]]  # reuse previous results, but problematic in 1st iteration/largest bandwidth
+      record.bic[ind] <- Inf
     }
   }
 
-  sel <- order(bic.record, -all.bw)[1]
-  rec <- new("list")
-  rec$smoother.record <- smoother.record
-  rec$all.param <- results
-  rec$bic <- bic.record
-  rec$param <- results[[sel]]  # not a df, be nice to return one
-  return(rec)
+  sel <- order(record.bic, -all.bw)[1]
+  record <- new("list")
+  record$record.smoother <- record.smoother
+  record$all.param <- results
+  record$bic <- record.bic
+  record$param <- results[[sel]]  # not a df, be nice to return one
+  return(record)
 }
 
 #' Generate feature table from noise-removed LC/MS profile.
