@@ -461,9 +461,7 @@ compute_initiation_params <- function(rt_profile, vlys, dx, pks) {
     delta[i] <- (sum(rt_profile[sel.1, "intensity"] * dx[sel.1]) + sum(rt_profile[sel.2, "intensity"] * dx[sel.2])) / 
     ((sum(dnorm(rt_profile[sel.1, "base.curve"], mean = m[i], sd = s1[i])) * s1[i] / 2) + (sum(dnorm(rt_profile[sel.2, "base.curve"], mean = m[i], sd = s2[i])) * s2[i] / 2))
   }
-  return (list(s1 = s1,
-    s2 = s2,
-    delta = delta))
+  return (list(s1 = s1, s2 = s2, delta = delta))
 }
 
 #' @description
@@ -477,20 +475,14 @@ compute_initiation_params <- function(rt_profile, vlys, dx, pks) {
 compute_e_step <- function(m, rt_profile, delta, s1, s2) {
   fit <- matrix(0, ncol = length(m), nrow = length(rt_profile[, "base.curve"])) # this is the matrix of fitted values
   cuts <- c(-Inf, m, Inf)
-  for (j in 2:length(cuts))
-  {
-    sel <- which(rt_profile[, "base.curve"] >= cuts[j - 1] & rt_profile[, "base.curve"] < cuts[j])
-    use.s1 <- which(1:length(m) >= (j - 1))
-    s.to.use <- s2
-    s.to.use[use.s1] <- s1[use.s1]
-    for (i in 1:ncol(fit))
-    {
-      fit[sel, i] <- dnorm(rt_profile[sel, "base.curve"], mean = m[i], sd = s.to.use[i]) * s.to.use[i] * delta[i]
-    }
+  for (j in 2:length(cuts)) {
+    sel <- which(dplyr::between(rt_profile[, "base.curve"], cuts[j - 1], cuts[j]))
+    use.s1 <- (1:length(m)) >= (j - 1)
+    use_sd <- ifelse(use.s1, s1, s2)
+    for (i in 1:length(m)) fit[sel, i] <- dnorm(rt_profile[sel, "base.curve"], mean = m[i], sd = use_sd[i]) * use_sd[i] * delta[i]
   }
   fit[is.na(fit)] <- 0
-  sum.fit <- apply(fit, 1, sum)
-  return(list(fit = fit, sum.fit = sum.fit))
+  return(fit)
 }
 
 #' @description
@@ -509,45 +501,39 @@ compute_e_step <- function(m, rt_profile, delta, s1, s2) {
 #' @importFrom dplyr filter arrange
 #' @export
 bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_ratio_lim = c(0.1, 10), bw = c(15, 30, 60), eliminate = .05, max.iter = 25, peak_estim_method, BIC_factor = 2) {
-  all.bw <- sort(bw)
   results <- new("list")
-  smoother.pk.rec <- smoother.vly.rec <- new("list")
-  bic.rec <- all.bw
-
-  if (do.plot) {
-    par(mfrow = c(ceiling(length(all.bw) / 2), 2))
-    par(mar = c(1, 1, 1, 1))
-  }
-
-  last.num.pks <- Inf
+  all.bw <- sort(bw)
+  record.smoother <- setNames(vector("list", length(all.bw)), all.bw)  # record smoothed peaks and valleys
+  record.bic <- all.bw  # record BIC for each bandwidth
 
   rt_profile_unfiltered <- rt_profile
   rt_profile <- data.frame(rt_profile) |> dplyr::filter(intensity > 1e-5) |> dplyr::arrange(base.curve)
+  
+  peaks_count <- Inf
 
   for (ind in length(all.bw):1)
   {
+    # kernel smoothing, peak and valley detection
     bw <- all.bw[ind]
     this.smooth <- ksmooth(rt_profile_unfiltered[, "base.curve"], rt_profile_unfiltered[, "intensity"], kernel = "normal", bandwidth = bw)
     turns <- find.turn.point(this.smooth$y)
     pks <- this.smooth$x[turns$pks]
     vlys <- c(-Inf, this.smooth$x[turns$vlys], Inf)
+    record.smoother[[as.character(bw)]] <- list(pks = pks, vlys = vlys)
 
-    smoother.pk.rec[[ind]] <- pks
-    smoother.vly.rec[[ind]] <- vlys
-    if (length(pks) != last.num.pks) {
-      last.num.pks <- length(pks)
-      l <- length(rt_profile[, "base.curve"])
+    results[[ind]] <- NA
+    record.bic[ind] <- Inf
+
+    if (length(pks) != peaks_count) {
+      peaks_count <- length(pks)
       dx <- compute_dx(rt_profile[, "base.curve"], apply_mask = FALSE)
 
       # initiation
-      initiation_params <- compute_initiation_params(rt_profile, vlys, dx, pks)
+      initiation_params <- compute_initiation_params(rt_profile, vlys, dx, pks)  # returns s1, s2, delta
       s1 <- initiation_params$s1
       s2 <- initiation_params$s2
       delta <- initiation_params$delta
-
-      delta[is.na(delta)] <- 1e-10
-      s1[is.na(s1)] <- 1e-10
-      s2[is.na(s2)] <- 1e-10
+      delta[is.na(delta)] <- s1[is.na(s1)] <- s2[is.na(s2)] <- 1e-10  # but why?
 
       this.change <- Inf
       counter <- 0
@@ -558,18 +544,15 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
         old.m <- m
 
         # E step
-        fits <- compute_e_step(m, rt_profile, delta, s1, s2)
-        fit <- fits$fit
-        sum.fit <- fits$sum.fit
+        fit <- compute_e_step(m, rt_profile, delta, s1, s2)
+        sum.fit <- apply(fit, 1, sum)
 
         # Elimination step
         fit <- fit / sum.fit
         fit2 <- fit * rt_profile[, "intensity"]
         perc.explained <- apply(fit2, 2, sum) / sum(rt_profile[, "intensity"])
         max.erase <- max(1, round(length(perc.explained) / 5))
-
         to.erase <- which(perc.explained <= min(eliminate, perc.explained[order(perc.explained, na.last = FALSE)[max.erase]]))
-
 
         if (length(to.erase) > 0) {
           m <- m[-to.erase]
@@ -577,17 +560,14 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
           s2 <- s2[-to.erase]
           delta <- delta[-to.erase]
           fit <- fit[, -to.erase]
-          if (is.null(ncol(fit))) {
-            fit <- matrix(fit, ncol = 1)
-          }
+          if (is.null(ncol(fit))) fit <- matrix(fit, ncol = 1)
           sum.fit <- apply(fit, 1, sum)
           fit <- fit / sum.fit
           old.m <- old.m[-to.erase]
         }
 
         # M step
-        for (i in 1:length(m))
-        {
+        for (i in 1:length(m)) {
           this.y <- rt_profile[, "intensity"] * fit[, i]
           if (peak_estim_method == "moment") {
             this.fit <- bigauss.esti(rt_profile[, "base.curve"], this.y, moment_power = moment_power, do.plot = FALSE, sigma_ratio_lim = sigma_ratio_lim)
@@ -601,50 +581,31 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
         }
         delta[is.na(delta)] <- 0
 
-        # amount of change
-        this.change <- sum((old.m - m)^2)
+        this.change <- sum((old.m - m)^2)  # amount of change
       }
-      cuts <- c(-Inf, m, Inf)
-      fit <- fit * 0
-      for (j in 2:length(cuts))
-      {
-        sel <- which(rt_profile[, "base.curve"] >= cuts[j - 1] & rt_profile[, "base.curve"] < cuts[j])
-        use.s1 <- which(1:length(m) >= (j - 1))
-        s.to.use <- s2
-        s.to.use[use.s1] <- s1[use.s1]
-        for (i in 1:ncol(fit))
-        {
-          if (s.to.use[i] != 0) {
-            fit[sel, i] <- dnorm(rt_profile[sel, "base.curve"], mean = m[i], sd = s.to.use[i]) * s.to.use[i] * delta[i]
-          }
-        }
-      }
+      # E step again ig
+      fit <- compute_e_step(m, rt_profile, delta, s1, s2)
 
       if (do.plot) {
+        par(mfrow = c(ceiling(length(all.bw) / 2), 2), mar = c(1, 1, 1, 1))
         plot_rt_profile(rt_profile, bw, fit, m)
       }
+
       area <- delta * (s1 + s2) / 2
       rss <- sum((rt_profile[, "intensity"] - apply(fit, 1, sum))^2)
-      l <- length(rt_profile[, "base.curve"])
-      bic <- l * log(rss / l) + 4 * length(m) * log(l) * BIC_factor
+      l <- length(rt_profile[, "base.curve"]) #####
+      bic <- l * log(rss / l) + 4 * length(m) * log(l) * BIC_factor #####
       results[[ind]] <- cbind(m, s1, s2, delta, area)
-      bic.rec[ind] <- bic
-    } else {
-      results[[ind]] <- NA
-      bic.rec[ind] <- Inf
-      results[[ind]] <- results[[ind + 1]]
+      record.bic[ind] <- bic
     }
   }
-  sel <- which(bic.rec == min(bic.rec, na.rm = TRUE))
-  if (length(sel) > 1) {
-    sel <- sel[which(all.bw[sel] == max(all.bw[sel]))]
-  }
+
+  sel <- order(record.bic, -all.bw)[1]
   rec <- new("list")
   rec$param <- results[[sel]]
-  rec$smoother.pks <- smoother.pk.rec
-  rec$smoother.vlys <- smoother.vly.rec
+  rec$record.smoother <- record.smoother
   rec$all.param <- results
-  rec$bic <- bic.rec
+  rec$bic <- record.bic
   return(rec)
 }
 
@@ -804,7 +765,7 @@ normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminat
   y <- rt_profile[, 'intensity']
 
   results <- new("list")
-  all.bw <- bw[order(bw)] # order bandwidths from small to large
+  all.bw <- sort(bw) # order bandwidths from small to large
   record.bic <- all.bw  # record BIC for each bandwidth
   record.smoother <- setNames(vector("list", length(all.bw)), all.bw)  # record smoothed peaks and valleys
   
