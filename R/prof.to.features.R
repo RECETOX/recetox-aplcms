@@ -84,15 +84,9 @@ preprocess_profile <- function(profile) {
 #'}
 #' @export
 compute_gaussian_peak_shape <- function(rt_profile, bw, component_eliminate, BIC_factor, aver_diff) {
-  rt_peak_shape <- normix.bic(rt_profile, bw = bw, eliminate = component_eliminate, BIC_factor = BIC_factor, aver_diff = aver_diff)$param
-  if (any(is.na(rt_peak_shape))) {
-    return(NULL)
-  }
-  if (nrow(rt_peak_shape) == 1) {
-    rt_peak_shape <- c(rt_peak_shape[1, 1:2], rt_peak_shape[1, 2], rt_peak_shape[1, 3])
-  } else {
-    rt_peak_shape <- cbind(rt_peak_shape[, 1:2], rt_peak_shape[, 2], rt_peak_shape[, 3])
-  }
+  rt_peak_shape <- normix.bic(rt_profile, bw = bw, eliminate = component_eliminate, BIC_factor = BIC_factor, aver_diff = aver_diff)$param # a matrix is returned, even if has one row
+  if (any(is.na(rt_peak_shape))) return(NULL)
+  rt_peak_shape <- rt_peak_shape[, c(1, 2, 2, 3)]  
   return(rt_peak_shape)
 }
 
@@ -655,14 +649,13 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
 }
 
 #' @description
-#' helper functions for normix that erase and save peak parameters
-erase <- function(to.erase, l, miu, sigma, sc, w) {
+#' Helper functions for normix that erase and save peak parameters
+erase <- function(to.erase, l, miu, sigma, sc) {
   l <- l - length(to.erase)
   miu <- miu[-to.erase]
   sigma <- sigma[-to.erase]
   sc <- sc[-to.erase]
-  w <- w[-to.erase, ]
-  return(list(l = l, miu = miu, sigma = sigma, sc = sc, w = w))
+  return(list(l = l, miu = miu, sigma = sigma, sc = sc))
 }
 
 save_mu_sc_std <- function(rt_profile, aver_diff, miu=NULL, sigma=NULL, sc=NULL, m=NULL) {
@@ -682,6 +675,7 @@ save_mu_sc_std <- function(rt_profile, aver_diff, miu=NULL, sigma=NULL, sc=NULL,
 #' @description
 #' Reevaluate parameters of chromatographic gaussian curves.
 #' Estimates Gaussian Mixture Model parameters with Expectation-Maximization (EM) algorithm.
+#' Returns a matrix with columns: miu, sigma, scale, each row corresponds to a peak
 #' @param that.curve Dataframe that stores RTs and intensities of features.
 #' @param pks A vector of sorted RT-peak values at which the kernel estimate was computed.
 #' @param vlys A vector of sorted RT-valley values at which the kernel estimate was computed.
@@ -718,7 +712,6 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
   vlys <- sort(vlys)
   l <- length(pks)
   miu <- sigma <- sc <- pks
-  w <- matrix(0, nrow = length(pks), ncol = length(x))  # weight matrix, #peaks x #RT points
 
   # predict initial parameters for each peak by rt and intensity values between neighbouring valleys
   for (m in 1:l)  
@@ -726,9 +719,8 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
     indices <- dplyr::between(x, max(vlys[vlys <= pks[m]]), min(vlys[vlys >= pks[m]]))
 
     if (length(x[indices]) == 0 | length(y[indices]) == 0) {  # no data points in this region
-      miu[m] <- NA
-      sigma[m] <- NA
-      sc[m] <- 1
+      miu[m] <- sigma[m] <- NA
+      sc[m] <- 1  # why not also NA?
     } else {
       rt_profile_filt <- data.frame(base.curve = x[indices], intensity = y[indices])
       list2env(save_mu_sc_std(rt_profile_filt, aver_diff, miu, sigma, sc, m), environment())
@@ -738,7 +730,7 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
   # erase invalid peaks, return record if no peaks left
   to.erase <- which(is.na(miu) | is.na(sigma) | sigma == 0 | is.na(sc))  # maybe check to see if compute_mu_sc_std can return NA or 0
   if (length(to.erase) > 0) {
-    list2env(erase(to.erase, l, miu, sigma, sc, w), environment())
+    list2env(erase(to.erase, l, miu, sigma, sc), environment())
     if (l == 0) {
       rec <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
       return(rec)
@@ -757,31 +749,30 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
     
     miu.previous <- miu    
 
-    w <- t(sapply(1:l, function(m) dnorm(x, mean = miu[m], sd = sigma[m]) * sc[m])) # estimated Gaussian distributions (y values) for each peak (component) at each RT point
-    all.w <- y * 0
-    for (m in 1:l) all.w <- all.w + w[m, ]  # total estimated intensity (Gaussian curve) at each RT point      
-    w <- t(apply(w, 1, function(x) x / all.w)) # normalize by total estimated intensity to get weights for each component at each RT point
+    fit <- t(sapply(1:l, function(m) dnorm(x, mean = miu[m], sd = sigma[m]) * sc[m])) # estimated Gaussian distributions (y values) for each peak (component) at each RT point
+    total.fit <- y * 0
+    for (m in 1:l) total.fit <- total.fit + fit[m, ]  # total estimated intensity (Gaussian curve) at each RT point      
+    fit.weighted <- t(apply(fit, 1, function(x) x / total.fit)) # normalize by total estimated intensity to get weights for each component at each RT point
     
-    if (any(is.na(w))) break
+    if (any(is.na(fit.weighted))) break
 
     for (m in 1:l)  # estimate new parameters for each peak with weighted intensities
     {
-      rt_profile_weighted <- data.frame(base.curve = x, intensity = y * w[m, ])  # estimated Gaussian parameters for weighted intensities at each RT point
+      rt_profile_weighted <- data.frame(base.curve = x, intensity = y * fit.weighted[m, ])  # estimated Gaussian parameters for fitted weighted intensities at each RT point
       list2env(save_mu_sc_std(rt_profile_weighted, aver_diff, miu, sigma, sc, m), environment())  # save params back to miu, sigma, sc
       if (sigma[m] == 0) sc[m] <- NA   # why?
     }
 
-    diff <- sum((miu.previous - miu)^2)  # Euclidean distance between old and new mean values
+    diff <- sum((miu.previous - miu)^2)  # squared Euclidean distance between old and new mean values
 
-    www <- colSums(apply(w, 1, function(row) row*y))  # total sum of weighted intensities at each RT point for each peak (component)
-    www[is.na(sc)] <- 0  # filter if scale is NA
-    www <- www / sum(www)  # normalise by total sum of weighted intensities
+    weights <- colSums(apply(fit.weighted, 1, function(row) row*y))  # total sum of weighted intensities at each RT point for each peak (component)
+    weights[is.na(sc)] <- 0  # filter if scale is NA
+    weights <- weights / sum(weights)  # normalise by total sum of weighted intensities
 
     max.erase <- max(1, round(l / 5))
-    to.erase <- which(www <= min(ignore, www[order(www, na.last = FALSE)[max.erase]]))
-    
-    if (length(to.erase) > 0) {  # erase invalid peaks, return record if no peaks left
-      list2env(erase(to.erase, l, miu, sigma, sc, w), environment())  # save params to environment
+    to.erase <- which(weights <= min(ignore, weights[order(weights, na.last = FALSE)[max.erase]]))
+    if (length(to.erase) > 0) {  # erase invalid peaks + their weights, return record if no peaks left
+      list2env(erase(to.erase, l, miu, sigma, sc), environment())  # save params to environment
       if (l == 0) {
         rec <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
         return(rec)
@@ -817,7 +808,7 @@ normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminat
   record.bic <- all.bw  # record BIC for each bandwidth
   record.smoother <- setNames(vector("list", length(all.bw)), all.bw)  # record smoothed peaks and valleys
   
-  last.num.pks <- Inf
+  peaks_count <- Inf
 
   for (ind in length(all.bw):1)
   { 
@@ -829,36 +820,29 @@ normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminat
     vlys <- c(-Inf, this.smooth$x[turns$vlys], Inf)
     record.smoother[[as.character(bw)]] <- list(pks = pks, vlys = vlys)
 
-    if (length(pks) != last.num.pks) {  # why do we compare with inf?
-      last.num.pks <- length(pks) # what's this 
-      # estimate gaussian mixture parameters for each peak
-      gaussian.est <- normix(rt_profile, pks = pks, vlys = vlys, ignore = eliminate, max.iter = max.iter, aver_diff = aver_diff)  # returns matrix with columns: miu, sigma, scale or vector
+    results[[ind]] <- NA 
+    record.bic[ind] <- Inf
 
-      if (nrow(gaussian.est) == 0) {     # no valid model - change dtype returned
-        results[[ind]] <- NA  
-        record.bic[ind] <- Inf  
-        next  # next bandwidth
-      }
-      # compute total fitted values
-      total.fit <- x * 0
+    if (length(pks) != peaks_count) {  # if a different number of peaks is found after smoothing, reestimate gaussian mixture
+      peaks_count <- length(pks)
+      
+      gaussian.est <- normix(rt_profile, pks = pks, vlys = vlys, ignore = eliminate, max.iter = max.iter, aver_diff = aver_diff)  # estimate gaussian mixture parameters
+      if (nrow(gaussian.est) == 0) next  # on to next bandwidth, no valid model returned. maybe use all(is.na(gaussian.est)) to check for empty matrix
+            
+      total.fit <- x * 0  # compute total fitted values
       for (i in 1:nrow(gaussian.est)) total.fit <- total.fit + dnorm(x, mean = gaussian.est[i, 1], sd = gaussian.est[i, 2]) * gaussian.est[i, 3]
-
-      if (do.plot) {
-        par(mfrow = c(ceiling(length(all.bw) / 2), 2))
-        par(mar = c(1, 1, 1, 1))
-        plot_normix_bic(x, y, bw, gaussian.est)
-      }
 
       # compute BIC
       rss <- sum((y - total.fit)^2)  # is BIC best criterion? 
       bic <- length(x) * log(rss / length(x)) + 3 * nrow(gaussian.est) * log(length(x)) * BIC_factor
       results[[ind]] <- gaussian.est
       record.bic[ind] <- bic
+
+      if (do.plot) {
+        par(mfrow = c(ceiling(length(all.bw) / 2), 2), mar = c(1, 1, 1, 1))
+        plot_normix_bic(x, y, bw, gaussian.est)
+      }
     } 
-    else {        
-      results[[ind]] <- NA  # results[[ind]] <- results[[ind + 1]]  # reuse previous results, but problematic in 1st iteration/largest bandwidth
-      record.bic[ind] <- Inf
-    }
   }
 
   sel <- order(record.bic, -all.bw)[1]
