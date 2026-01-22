@@ -336,7 +336,7 @@ compute_scale <- function(y, d) {
 }
 
 #' @description
-#' Estimate the parameters of Bi-Gaussian curve.
+#' Estimate the parameters of Bi-Gaussian curve by Method of Moments
 #' @param x Vector of RTs that lay in the same RT cluster.
 #' @param y Intensities that belong to x.
 #' @param moment_power The parameter for data transformation when fitting the bi-Gaussian or Gaussian mixture model in an EIC.
@@ -353,86 +353,78 @@ compute_scale <- function(y, d) {
 bigauss.esti <- function(x, y, moment_power = 1, do.plot = FALSE, sigma_ratio_lim = c(0.3, 3)) {
   # even producing a dataframe with x and y as columns without actually using it causes the test to run forever
   sel <- which(y > 1e-10)
-  if (length(sel) < 2) {
-    return (c(median(x), 1, 1, 0))
+  if (length(sel) < 2) return (c(median(x), 1, 1, 0)) 
+  
+  x <- x[sel]  
+  y <- y[sel]
+
+  y.0 <- y
+  max.y.0 <- max(y.0, na.rm = TRUE)
+  y <- (y / max.y.0)^moment_power
+
+  dx <- compute_dx(x)
+
+  y.cum <- cumsum(y * dx)
+  x.y.cum <- cumsum(y * x * dx)
+  xsqr.y.cum <- cumsum(y * x^2 * dx)
+
+  y.cum.rev <- rev_cum_sum(y * dx)
+  x.y.cum.rev <- rev_cum_sum(x * y * dx)
+  xsqr.y.cum.rev <- rev_cum_sum(y * x^2 * dx)
+
+  bounds <- compute_bounds(y.cum, sigma_ratio_lim)
+  end <- bounds$end
+  start <- bounds$start
+
+  if (end <= start) {
+    m <- min(mean(x[start:end]), x[max(which(y.cum.rev > 0))])
   } else {
-    x <- x[sel]
-    y <- y[sel]
+    m.candi <- x[start:end] + diff(x[start:(end + 1)]) / 2
+    rec <- matrix(numeric(0), nrow = 0, ncol = 3)
 
-    y.0 <- y
-    if (do.plot) {
-        plot(x, y)
-    }
-    max.y.0 <- max(y.0, na.rm = TRUE)
-    y <- (y / max.y.0)^moment_power
+    s1 <- sqrt((xsqr.y.cum[start:end] + m.candi^2 * y.cum[start:end] - 2 * m.candi * x.y.cum[start:end]) / y.cum[start:end])
+    s2 <- sqrt((xsqr.y.cum.rev[start:end + 1] + m.candi^2 * y.cum.rev[start:end + 1] - 2 * m.candi * x.y.cum.rev[start:end + 1]) / y.cum.rev[start:end + 1])
+    rec <- rbind(rec, cbind(s1, s2, y.cum[start:end] / y.cum.rev[start:end + 1]))
 
-    dx <- compute_dx(x)
-
-    y.cum <- cumsum(y * dx)
-    x.y.cum <- cumsum(y * x * dx)
-    xsqr.y.cum <- cumsum(y * x^2 * dx)
-
-    y.cum.rev <- rev_cum_sum(y * dx)
-    x.y.cum.rev <- rev_cum_sum(x * y * dx)
-    xsqr.y.cum.rev <- rev_cum_sum(y * x^2 * dx)
-
-    bounds <- compute_bounds(y.cum, sigma_ratio_lim)
-    end <- bounds$end
-    start <- bounds$start
-
-    if (end <= start) {
-      m <- min(mean(x[start:end]), x[max(which(y.cum.rev > 0))])
+    d <- log(rec[,1] / rec[,2]) - log(rec[,3])
+    if (min(d, na.rm = TRUE) * max(d, na.rm = TRUE) < 0) {
+      sel <- c(which(d == max(d[d < 0]))[1], which(d == min(d[d >= 0])))
+      m <- (sum(abs(d[sel]) * m.candi[sel])) / (sum(abs(d[sel])))
     } else {
-      m.candi <- x[start:end] + diff(x[start:(end + 1)]) / 2
-      rec <- matrix(0, ncol = 3, nrow = end - start + 1)
-
-      s1 <- sqrt((xsqr.y.cum[start:end] + m.candi^2 * y.cum[start:end] - 2 * m.candi * x.y.cum[start:end]) / y.cum[start:end])
-      s2 <- sqrt((xsqr.y.cum.rev[start:end + 1] + m.candi^2 * y.cum.rev[start:end + 1] - 2 * m.candi * x.y.cum.rev[start:end + 1]) / y.cum.rev[start:end + 1])
-      rec[, 1] <- s1
-      rec[, 2] <- s2
-      rec[, 3] <- y.cum[start:end] / y.cum.rev[start:end + 1]
-
-      d <- log(rec[, 1] / rec[, 2]) - log(rec[, 3])
-      if (min(d, na.rm = TRUE) * max(d, na.rm = TRUE) < 0) {
-        sel <- c(which(d == max(d[d < 0]))[1], which(d == min(d[d >= 0])))
-        m <- (sum(abs(d[sel]) * m.candi[sel])) / (sum(abs(d[sel])))
-      } else {
-        d <- abs(d)
-        m <- m.candi[which(d == min(d, na.rm = TRUE))[1]]
-      }
-    }
-
-    if (do.plot) {
-        abline(v = m)
-    }
-
-    sel1 <- which(x < m)
-    sel2 <- which(x >= m)
-    s1 <- sqrt(sum((x[sel1] - m)^2 * y[sel1] * dx[sel1]) / sum(y[sel1] * dx[sel1]))
-    s2 <- sqrt(sum((x[sel2] - m)^2 * y[sel2] * dx[sel2]) / sum(y[sel2] * dx[sel2]))
-
-    s1 <- s1 * sqrt(moment_power)
-    s2 <- s2 * sqrt(moment_power)
-
-    d1 <- dnorm(x[sel1], sd = s1, mean = m)
-    d2 <- dnorm(x[sel2], sd = s2, mean = m)
-    d <- c(d1 * s1, d2 * s2) # notice this "density" does not integrate to 1. Rather it integrates to (s1+s2)/2
-    y <- y.0
-
-    scale <- compute_scale(y, d)
-
-    if (do.plot) {
-      lines(x[y > 0], d * scale, col = "red")
-    }
-
-    to.return <- c(m, s1, s2, scale)
-    if (sum(is.na(to.return)) > 0) {
-      m <- sum(x * y) / sum(y)
-      s1 <- s2 <- sum(y * (x - m)^2) / sum(y)
-      scale <- sum(y) / s1
-      to.return <- c(m, s1, s2, scale)
+      d <- abs(d)
+      m <- m.candi[which(d == min(d, na.rm = TRUE))[1]]
     }
   }
+
+  sel1 <- which(x < m)
+  sel2 <- which(x >= m)
+  s1 <- sqrt(sum((x[sel1] - m)^2 * y[sel1] * dx[sel1]) / sum(y[sel1] * dx[sel1]))
+  s2 <- sqrt(sum((x[sel2] - m)^2 * y[sel2] * dx[sel2]) / sum(y[sel2] * dx[sel2]))
+
+  s1 <- s1 * sqrt(moment_power)
+  s2 <- s2 * sqrt(moment_power)
+
+  d1 <- dnorm(x[sel1], sd = s1, mean = m)
+  d2 <- dnorm(x[sel2], sd = s2, mean = m)
+  d <- c(d1 * s1, d2 * s2) # notice this "density" does not integrate to 1. Rather it integrates to (s1+s2)/2
+  y <- y.0
+
+  scale <- compute_scale(y, d)
+
+  if (do.plot) {
+    plot(x, y)
+    abline(v = m)
+    lines(x[y > 0], d * scale, col = "red")
+  }
+
+  to.return <- c(m, s1, s2, scale)
+  if (sum(is.na(to.return)) > 0) {
+    m <- sum(x * y) / sum(y)
+    s1 <- s2 <- sum(y * (x - m)^2) / sum(y)
+    scale <- sum(y) / s1
+    to.return <- c(m, s1, s2, scale)
+  }
+  
   return(to.return)
 }
 
@@ -448,10 +440,9 @@ bigauss.esti <- function(x, y, moment_power = 1, do.plot = FALSE, sigma_ratio_li
 #'   \item standard deviation at the right side of the gaussian curve
 #'   \item estimated total signal strength (total area of the estimated normal curve)
 #' @export
-compute_initiation_params <- function(rt_profile, vlys, dx, pks) {
+compute_initiation_params <- function(rt_profile, pks, vlys, dx) {
   m <- s1 <- s2 <- delta <- pks
-  for (i in 1:length(m))
-  {
+  for (i in 1:length(m)) {
     sel.1 <- which(rt_profile[, "base.curve"] >= max(vlys[vlys < m[i]]) & rt_profile[, "base.curve"] < m[i])
     s1[i] <- sqrt(sum((rt_profile[sel.1, "base.curve"] - m[i])^2 * rt_profile[sel.1, "intensity"] * dx[sel.1]) / sum(rt_profile[sel.1, "intensity"] * dx[sel.1]))
 
@@ -472,14 +463,14 @@ compute_initiation_params <- function(rt_profile, vlys, dx, pks) {
 #' @param s1 Parameter computed by the initiation step.
 #' @param s2 Parameter computed by the initiation step.
 #' @export
-compute_e_step <- function(m, rt_profile, delta, s1, s2) {
-  fit <- matrix(0, ncol = length(m), nrow = length(rt_profile[, "base.curve"])) # this is the matrix of fitted values
-  cuts <- c(-Inf, m, Inf)
+compute_e_step <- function(rt_profile, miu, s1, s2, delta) {
+  fit <- matrix(numeric(0), ncol = length(miu), nrow = length(rt_profile[, "base.curve"])) # this is the matrix of fitted values
+  cuts <- c(-Inf, miu, Inf)
   for (j in 2:length(cuts)) {
     sel <- which(dplyr::between(rt_profile[, "base.curve"], cuts[j - 1], cuts[j]))
-    use.s1 <- (1:length(m)) >= (j - 1)
+    use.s1 <- (1:length(miu)) >= (j - 1)
     use_sd <- ifelse(use.s1, s1, s2)
-    for (i in 1:length(m)) fit[sel, i] <- dnorm(rt_profile[sel, "base.curve"], mean = m[i], sd = use_sd[i]) * use_sd[i] * delta[i]
+    for (i in 1:length(miu)) fit[sel, i] <- dnorm(rt_profile[sel, "base.curve"], mean = miu[i], sd = use_sd[i]) * use_sd[i] * delta[i]
   }
   fit[is.na(fit)] <- 0
   return(fit)
@@ -506,9 +497,8 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
   record.smoother <- setNames(vector("list", length(all.bw)), all.bw)  # record smoothed peaks and valleys
   record.bic <- all.bw  # record BIC for each bandwidth
 
-  rt_profile_unfiltered <- rt_profile
-  rt_profile <- data.frame(rt_profile) |> dplyr::filter(intensity > 1e-5) |> dplyr::arrange(base.curve)
-  
+  rt_profile_unfiltered <- rt_profile  # keep for kernel smoothing for tests but consider removing - gaussian estimation smooths on filtered dataset - not consistent
+  rt_profile <- data.frame(rt_profile) |> dplyr::filter(intensity > 1e-5) |> dplyr::arrange(base.curve)  
   peaks_count <- Inf
 
   for (ind in length(all.bw):1)
@@ -523,114 +513,80 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
 
     results[[ind]] <- NA
     record.bic[ind] <- Inf
+    params <- matrix(numeric(0), nrow = 0, ncol = 4, dimnames=list(NULL, c("miu", "s1", "s2", "delta")))
 
     if (length(pks) != peaks_count) {
       peaks_count <- length(pks)
       dx <- compute_dx(rt_profile[, "base.curve"], apply_mask = FALSE)
 
       # initiation
-      initiation_params <- compute_initiation_params(rt_profile, vlys, dx, pks)  # returns s1, s2, delta
-      s1 <- initiation_params$s1
-      s2 <- initiation_params$s2
-      delta <- initiation_params$delta
-      delta[is.na(delta)] <- s1[is.na(s1)] <- s2[is.na(s2)] <- 1e-10  # but why?
+      initiation_params <- compute_initiation_params(rt_profile, pks, vlys, dx)
+      params <- rbind(params, cbind(pks, initiation_params$s1, initiation_params$s2, initiation_params$delta))
+      params[is.na(params)] <- 1e-10  # why?
 
       this.change <- Inf
       counter <- 0
 
-      m <- pks
-      while (this.change > 0.1 & counter <= max.iter) {
+      while (this.change > 0.1 && counter <= max.iter) {
         counter <- counter + 1
-        old.m <- m
+        old.m <- params[,'miu']
 
         # E step
-        fit <- compute_e_step(m, rt_profile, delta, s1, s2)
-        sum.fit <- apply(fit, 1, sum)
+        fit <- compute_e_step(rt_profile, params[,'miu'], params[,'s1'], params[,'s2'], params[,'delta'])
 
         # Elimination step
-        fit <- fit / sum.fit
+        fit <- fit / apply(fit, 1, sum)
         fit2 <- fit * rt_profile[, "intensity"]
         perc.explained <- apply(fit2, 2, sum) / sum(rt_profile[, "intensity"])
         max.erase <- max(1, round(length(perc.explained) / 5))
         to.erase <- which(perc.explained <= min(eliminate, perc.explained[order(perc.explained, na.last = FALSE)[max.erase]]))
 
         if (length(to.erase) > 0) {
-          m <- m[-to.erase]
-          s1 <- s1[-to.erase]
-          s2 <- s2[-to.erase]
-          delta <- delta[-to.erase]
+          old.m <- old.m[-to.erase]
+          params <- params[-to.erase, , drop = FALSE]
           fit <- fit[, -to.erase]
           if (is.null(ncol(fit))) fit <- matrix(fit, ncol = 1)
-          sum.fit <- apply(fit, 1, sum)
-          fit <- fit / sum.fit
-          old.m <- old.m[-to.erase]
+          fit <- fit / apply(fit, 1, sum)
         }
 
         # M step
-        for (i in 1:length(m)) {
+        for (i in 1:length(params[,1])) {  
           this.y <- rt_profile[, "intensity"] * fit[, i]
           if (peak_estim_method == "moment") {
             this.fit <- bigauss.esti(rt_profile[, "base.curve"], this.y, moment_power = moment_power, do.plot = FALSE, sigma_ratio_lim = sigma_ratio_lim)
           } else {
             this.fit <- bigauss.esti.EM(rt_profile[, "base.curve"], this.y, do.plot = FALSE, sigma_ratio_lim = sigma_ratio_lim)
           }
-          m[i] <- this.fit[1]
-          s1[i] <- this.fit[2]
-          s2[i] <- this.fit[3]
-          delta[i] <- this.fit[4]
+          params[i, ] <- c(this.fit[1], this.fit[2], this.fit[3], this.fit[4])
         }
-        delta[is.na(delta)] <- 0
 
-        this.change <- sum((old.m - m)^2)  # amount of change
+        params[is.na(params[, 'delta']), 4] <- 0  # why?
+        this.change <- sum((old.m - params[,'miu'])^2)  # amount of change - sum of squared differences  
       }
-      # E step again ig
-      fit <- compute_e_step(m, rt_profile, delta, s1, s2)
+      # E step again
+      fit <- compute_e_step(rt_profile, params[,'miu'], params[,'s1'], params[,'s2'], params[,'delta'])
 
       if (do.plot) {
         par(mfrow = c(ceiling(length(all.bw) / 2), 2), mar = c(1, 1, 1, 1))
-        plot_rt_profile(rt_profile, bw, fit, m)
+        plot_rt_profile(rt_profile, bw, fit, params[,1])
       }
 
-      area <- delta * (s1 + s2) / 2
+      area <- params[,'delta'] * (params[,'s1'] + params[,'s2']) / 2
       rss <- sum((rt_profile[, "intensity"] - apply(fit, 1, sum))^2)
-      l <- length(rt_profile[, "base.curve"]) #####
-      bic <- l * log(rss / l) + 4 * length(m) * log(l) * BIC_factor #####
-      results[[ind]] <- cbind(m, s1, s2, delta, area)
+      l <- length(rt_profile[, "base.curve"]) 
+      bic <- l * log(rss / l) + 4 * length(params[,'miu']) * log(l) * BIC_factor
+      results[[ind]] <- cbind(params, area)
       record.bic[ind] <- bic
     }
   }
 
   sel <- order(record.bic, -all.bw)[1]
-  rec <- new("list")
-  rec$param <- results[[sel]]
-  rec$record.smoother <- record.smoother
-  rec$all.param <- results
-  rec$bic <- record.bic
-  return(rec)
-}
-
-#' @description
-#' Helper functions for normix that erase and save peak parameters
-erase <- function(to.erase, l, miu, sigma, sc) {
-  l <- l - length(to.erase)
-  miu <- miu[-to.erase]
-  sigma <- sigma[-to.erase]
-  sc <- sc[-to.erase]
-  return(list(l = l, miu = miu, sigma = sigma, sc = sc))
-}
-
-save_mu_sc_std <- function(rt_profile, aver_diff, miu=NULL, sigma=NULL, sc=NULL, m=NULL) {
-  mu_sc_std <- compute_mu_sc_std(rt_profile, aver_diff)
-  if (is.null(m) | is.null(miu) | is.null(sigma) | is.null(sc)) {
-    miu <- mu_sc_std$miu
-    sigma <- mu_sc_std$sigma    
-    sc <- mu_sc_std$sc
-  }  else {
-    miu[m] <- mu_sc_std$miu
-    sigma[m] <- mu_sc_std$sigma
-    sc[m] <- mu_sc_std$sc
-  }
-  return(list(miu = miu, sigma = sigma, sc = sc))
+  record <- new("list")
+  record$param <- results[[sel]]
+  record$record.smoother <- record.smoother
+  record$all.param <- results
+  record$bic <- record.bic
+  return(record)
 }
 
 #' @description
@@ -656,46 +612,41 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
   x <- rt_profile[, 'base.curve']
   y <- rt_profile[, 'intensity']
   colnames <- c("miu", "sigma", "scale")
+  params <- matrix(numeric(0), nrow=0, ncol=3, dimnames=list(NULL, colnames))
 
   if (length(pks) == 0) { # no peaks, does it happen?
-    rec <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
-    return(rec)
+    return(params)
   } 
 
-  # check for 1 peak case
-  if (length(pks) == 1) {  
-    list2env(save_mu_sc_std(rt_profile, aver_diff), environment())
-    rec <- matrix(c(miu, sigma, sc), nrow = 1, dimnames=list(NULL, colnames))
-    return(rec)
+  if (length(pks) == 1) {  # check for 1 peak case
+    mu_sc_std <- compute_mu_sc_std(rt_profile, aver_diff)
+    params <- rbind(params, cbind(mu_sc_std$miu, mu_sc_std$sigma, mu_sc_std$sc))
+    return(params)
   }
 
   pks <- sort(pks)
   vlys <- sort(vlys)
   l <- length(pks)
-  miu <- sigma <- sc <- pks
 
   # predict initial parameters for each peak by rt and intensity values between neighbouring valleys
-  for (m in 1:l)  
-  {
+  for (m in 1:l)  {
     indices <- dplyr::between(x, max(vlys[vlys <= pks[m]]), min(vlys[vlys >= pks[m]]))
 
-    if (length(x[indices]) == 0 | length(y[indices]) == 0) {  # no data points in this region
-      miu[m] <- sigma[m] <- NA
-      sc[m] <- 1  # why not also NA?
+    if (length(x[indices]) == 0 | length(y[indices]) == 0) {  
+      params <- rbind(params, cbind(NA, NA, 1))  # no data points in this region, why is scale=1?????
     } else {
       rt_profile_filt <- data.frame(base.curve = x[indices], intensity = y[indices])
-      list2env(save_mu_sc_std(rt_profile_filt, aver_diff, miu, sigma, sc, m), environment())
+      mu_sc_std <- compute_mu_sc_std(rt_profile_filt, aver_diff)
+      params <- rbind(params, cbind(mu_sc_std$miu, mu_sc_std$sigma, mu_sc_std$sc))
     }
   }
-
-  # erase invalid peaks, return record if no peaks left
-  to.erase <- which(is.na(miu) | is.na(sigma) | sigma == 0 | is.na(sc))  # maybe check to see if compute_mu_sc_std can return NA or 0
+  
+  # erase invalid peaks, return record if no peaks left # maybe check to see if compute_mu_sc_std can return NA or 0
+  to.erase <- which(is.na(params[,'miu']) | is.na(params[,'sigma']) | params[,'sigma'] == 0 | is.na(params[,'scale']))
   if (length(to.erase) > 0) {
-    list2env(erase(to.erase, l, miu, sigma, sc), environment())
-    if (l == 0) {
-      rec <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
-      return(rec)
-    }
+    l <- l - length(to.erase)
+    params <- params[-to.erase, , drop = FALSE]
+    if (l == 0) return(params)
   }
 
   diff <- 1000
@@ -704,45 +655,47 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
   while (diff > 0.05 & counter < max.iter) {
     counter <- counter + 1
     if (l == 1) {
-      list2env(save_mu_sc_std(rt_profile, aver_diff), environment())
-      break
+      mu_sc_std <- compute_mu_sc_std(rt_profile, aver_diff)
+      params <- matrix(cbind(mu_sc_std$miu, mu_sc_std$sigma, mu_sc_std$sc), nrow=1, ncol=3, dimnames=list(NULL, colnames))
+      return(params)
     }
     
-    miu.previous <- miu    
+    miu.previous <- params[,'miu']    
 
-    fit <- t(sapply(1:l, function(m) dnorm(x, mean = miu[m], sd = sigma[m]) * sc[m])) # estimated Gaussian distributions (y values) for each peak (component) at each RT point
+    fit <- t(sapply(1:l, function(m) dnorm(x, mean = params[m,'miu'], sd = params[m,'sigma']) * params[m,'scale'])) # estimated Gaussian distributions (y values) for each peak (component) at each RT point
     total.fit <- y * 0
     for (m in 1:l) total.fit <- total.fit + fit[m, ]  # total estimated intensity (Gaussian curve) at each RT point      
     fit.weighted <- t(apply(fit, 1, function(x) x / total.fit)) # normalize by total estimated intensity to get weights for each component at each RT point
     
     if (any(is.na(fit.weighted))) break
 
+    params <- matrix(numeric(0), nrow=0, ncol=3, dimnames=list(NULL, colnames))
     for (m in 1:l)  # estimate new parameters for each peak with weighted intensities
     {
       rt_profile_weighted <- data.frame(base.curve = x, intensity = y * fit.weighted[m, ])  # estimated Gaussian parameters for fitted weighted intensities at each RT point
-      list2env(save_mu_sc_std(rt_profile_weighted, aver_diff, miu, sigma, sc, m), environment())  # save params back to miu, sigma, sc
-      if (sigma[m] == 0) sc[m] <- NA   # why?
+      mu_sc_std <- compute_mu_sc_std(rt_profile_weighted, aver_diff)
+      params <- rbind(params, cbind(mu_sc_std$miu, mu_sc_std$sigma, mu_sc_std$sc))  
+      if (params[m,'sigma'] == 0) params[m,'scale'] <- NA  # why???
     }
 
-    diff <- sum((miu.previous - miu)^2)  # squared Euclidean distance between old and new mean values
-
+    diff <- sum((miu.previous - params[,'miu'])^2)  # squared Euclidean distance between old and new mean values
     weights <- colSums(apply(fit.weighted, 1, function(row) row*y))  # total sum of weighted intensities at each RT point for each peak (component)
-    weights[is.na(sc)] <- 0  # filter if scale is NA
+    weights[is.na(params[,'scale'])] <- 0  # filter if scale is NA
     weights <- weights / sum(weights)  # normalise by total sum of weighted intensities
 
     max.erase <- max(1, round(l / 5))
     to.erase <- which(weights <= min(ignore, weights[order(weights, na.last = FALSE)[max.erase]]))
     if (length(to.erase) > 0) {  # erase invalid peaks + their weights, return record if no peaks left
-      list2env(erase(to.erase, l, miu, sigma, sc), environment())  # save params to environment
+      l <- l - length(to.erase) 
+      params <- params[-to.erase, , drop = FALSE]
       if (l == 0) {
-        rec <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
-        return(rec)
+        params <- matrix(numeric(0), nrow = 0, ncol = 3, dimnames=list(NULL, colnames))
+        return(params)
       }
       diff <- 1000
     }
   }
-  rec <- cbind('miu' = miu, 'sigma' = sigma, 'scale' = sc)
-  return(rec)
+  return(params)
 }
 
 #' @description
@@ -758,9 +711,8 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
 #' @param aver_diff Average retention time difference across RTs of all features.
 #' @export
 normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminate = .05, max.iter = 50, BIC_factor = 2, aver_diff) {
-  rt_profile <- rt_profile |> 
-    dplyr::filter(intensity > 1e-5) |> 
-    dplyr::arrange(base.curve)
+  # think about what to return: a whole named list? just the best params?
+  rt_profile <- rt_profile |> dplyr::filter(intensity > 1e-5) |> dplyr::arrange(base.curve)
   x <- rt_profile[, 'base.curve']
   y <- rt_profile[, 'intensity']
 
@@ -791,7 +743,7 @@ normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminat
       if (nrow(gaussian.est) == 0) next  # on to next bandwidth, no valid model returned. maybe use all(is.na(gaussian.est)) to check for empty matrix
             
       total.fit <- x * 0  # compute total fitted values
-      for (i in 1:nrow(gaussian.est)) total.fit <- total.fit + dnorm(x, mean = gaussian.est[i, 1], sd = gaussian.est[i, 2]) * gaussian.est[i, 3]
+      for (i in 1:nrow(gaussian.est)) total.fit <- total.fit + dnorm(x, mean = gaussian.est[i, 'miu'], sd = gaussian.est[i, 'sigma']) * gaussian.est[i, 'scale']
 
       # compute BIC
       rss <- sum((y - total.fit)^2)  # is BIC best criterion? 
