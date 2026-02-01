@@ -32,15 +32,14 @@ validate_model_method_input <- function(shape_model, peak_estim_method) {
 #' @export
 preprocess_bandwidth <- function(min_bandwidth, max_bandwidth, profile) {
   if (is.na(min_bandwidth)) {
-    min_bandwidth <- diff(range(profile[, 2], na.rm = TRUE)) / 60
+    min_bandwidth <- diff(range(profile[, 'rt'], na.rm = TRUE)) / 60
   }
   if (is.na(max_bandwidth)) {
-    max_bandwidth <- diff(range(profile[, 2], na.rm = TRUE)) / 15
+    max_bandwidth <- diff(range(profile[, 'rt'], na.rm = TRUE)) / 15
   }
   if (min_bandwidth >= max_bandwidth) {
     min_bandwidth <- max_bandwidth / 4
   }
-
   return(data.frame("min_bandwidth" = min_bandwidth, "max_bandwidth" = max_bandwidth))
 }
 
@@ -223,8 +222,7 @@ rev_cum_sum <- function(x) {
 #' @return Returns end bound.
 #' @export
 compute_start_bound <- function(x, left_sigma_ratio_lim) {
-  start_bound <- 1
-  
+  start_bound <- 1  
   len_x <- length(x)
   idx <- which(x >= left_sigma_ratio_lim / (left_sigma_ratio_lim + 1) * x[len_x])
   if (length(idx) > 0) {
@@ -242,7 +240,6 @@ compute_start_bound <- function(x, left_sigma_ratio_lim) {
 compute_end_bound <- function(x, right_sigma_ratio_lim) {
   len_x <- length(x)
   end_bound <- len_x - 1
-
   idx <- which(x <= right_sigma_ratio_lim / (right_sigma_ratio_lim + 1) * x[len_x])
   if (length(idx) > 0) {
     end_bound <- min(len_x - 1, max(idx))
@@ -424,28 +421,29 @@ bigauss.esti <- function(x, y, moment_power = 1, do.plot = FALSE, sigma_ratio_li
 #' @description
 #' Calculates the three initial bi-gaussian parameters (sd1, sd2, and scaling factor)
 #' @param rt_profile A matrix with two columns: "base.curve" (rt) and "intensity".
+#' @param pks A vector of sorted RT-peak values at which the kernel estimate was computed.
 #' @param vlys A vector of sorted RT-valley values at which the kernel estimate was computed.
 #' @param dx Difference between neighbouring RT values with step 2.
-#' @param pks A vector of sorted RT-peak values at which the kernel estimate was computed.
-#' @return A list. The items are as follows going from first to last:
+#' @return A matrix. The items are as follows going from first to last:
 #' \itemize{
-#'   \item standard deviation at the left side of the gaussian curve
-#'   \item standard deviation at the right side of the gaussian curve
-#'   \item estimated total signal strength (total area of the estimated normal curve)
+#'   \item s1: standard deviation at the left side of the gaussian curve
+#'   \item s2: standard deviation at the right side of the gaussian curve
+#'   \item delta: estimated total signal strength (total area of the estimated normal curve)
+#' probably a matrix is better though
 #' @export
 compute_initiation_params <- function(rt_profile, pks, vlys, dx) {
-  m <- s1 <- s2 <- delta <- pks
-  for (i in 1:length(m)) {
-    sel.1 <- which(rt_profile[, "base.curve"] >= max(vlys[vlys < m[i]]) & rt_profile[, "base.curve"] < m[i])
-    s1[i] <- sqrt(sum((rt_profile[sel.1, "base.curve"] - m[i])^2 * rt_profile[sel.1, "intensity"] * dx[sel.1]) / sum(rt_profile[sel.1, "intensity"] * dx[sel.1]))
+  miu <- s1 <- s2 <- delta <- pks
+  for (i in 1:length(miu)) {
+    ind.1 <- which(rt_profile[, "base.curve"] >= max(vlys[vlys < miu[i]]) & rt_profile[, "base.curve"] < miu[i])
+    s1[i] <- sqrt(sum((rt_profile[ind.1, "base.curve"] - miu[i])^2 * rt_profile[ind.1, "intensity"] * dx[ind.1]) / sum(rt_profile[ind.1, "intensity"] * dx[ind.1]))
 
-    sel.2 <- which(rt_profile[, "base.curve"] >= m[i] & rt_profile[, "base.curve"] < min(vlys[vlys > m[i]]))
-    s2[i] <- sqrt(sum((rt_profile[sel.2, "base.curve"] - m[i])^2 * rt_profile[sel.2, "intensity"] * dx[sel.2]) / sum(rt_profile[sel.2, "intensity"] * dx[sel.2]))
+    ind.2 <- which(rt_profile[, "base.curve"] >= miu[i] & rt_profile[, "base.curve"] < min(vlys[vlys > miu[i]]))
+    s2[i] <- sqrt(sum((rt_profile[ind.2, "base.curve"] - miu[i])^2 * rt_profile[ind.2, "intensity"] * dx[ind.2]) / sum(rt_profile[ind.2, "intensity"] * dx[ind.2]))
 
-    delta[i] <- (sum(rt_profile[sel.1, "intensity"] * dx[sel.1]) + sum(rt_profile[sel.2, "intensity"] * dx[sel.2])) / 
-    ((sum(dnorm(rt_profile[sel.1, "base.curve"], mean = m[i], sd = s1[i])) * s1[i] / 2) + (sum(dnorm(rt_profile[sel.2, "base.curve"], mean = m[i], sd = s2[i])) * s2[i] / 2))
+    delta[i] <- (sum(rt_profile[ind.1, "intensity"] * dx[ind.1]) + sum(rt_profile[ind.2, "intensity"] * dx[ind.2])) / 
+    ((sum(dnorm(rt_profile[ind.1, "base.curve"], mean = miu[i], sd = s1[i])) * s1[i] / 2) + (sum(dnorm(rt_profile[ind.2, "base.curve"], mean = miu[i], sd = s2[i])) * s2[i] / 2))
   }
-  return (list(s1 = s1, s2 = s2, delta = delta))
+  return (cbind(s1=s1, s2=s2, delta=delta))
 }
 
 #' @description
@@ -460,10 +458,9 @@ compute_e_step <- function(rt_profile, miu, s1, s2, delta) {
   fit <- matrix(numeric(0), ncol = length(miu), nrow = length(rt_profile[, "base.curve"])) # this is the matrix of fitted values
   cuts <- c(-Inf, miu, Inf)
   for (j in 2:length(cuts)) {
-    sel <- which(dplyr::between(rt_profile[, "base.curve"], cuts[j - 1], cuts[j]))
-    use.s1 <- (1:length(miu)) >= (j - 1)
-    use_sd <- ifelse(use.s1, s1, s2)
-    for (i in 1:length(miu)) fit[sel, i] <- dnorm(rt_profile[sel, "base.curve"], mean = miu[i], sd = use_sd[i]) * use_sd[i] * delta[i]
+    ind <- which(dplyr::between(rt_profile[, "base.curve"], cuts[j - 1], cuts[j]))
+    use_sd <- ifelse((1:length(miu)) >= (j - 1), s1, s2)
+    for (i in 1:length(miu)) fit[ind, i] <- dnorm(rt_profile[ind, "base.curve"], mean = miu[i], sd = use_sd[i]) * use_sd[i] * delta[i]
   }
   fit[is.na(fit)] <- 0
   return(fit)
@@ -514,7 +511,7 @@ bigauss.mix <- function(rt_profile, moment_power = 1, do.plot = FALSE, sigma_rat
 
       # initiation
       initiation_params <- compute_initiation_params(rt_profile, pks, vlys, dx)
-      params <- rbind(params, cbind(pks, initiation_params$s1, initiation_params$s2, initiation_params$delta))
+      params <- rbind(params, cbind(pks, initiation_params[,'s1'], initiation_params[,'s2'], initiation_params[,'delta']))
       params[is.na(params)] <- 1e-10  # why?
 
       this.change <- Inf
@@ -824,7 +821,7 @@ prof.to.features <- function(profile,
     # Defines the dataframe containing median_mz, median_rt, sd1, sd2, and area
     if (num_features < 2) {
       time_weights <- all_diff_mean_rts[which(base.curve$base.curve %in% feature_group$rt)]
-      rt_peak_shape <- c(feature_group$mz, feature_group$rt, NA, NA, feature_group$intensity * time_weights)
+      rt_peak_shape <- c(feature_group[,'mz'], feature_group[,'rt'], NA, NA, feature_group[,'intensity'] * time_weights)
       peak_parameters <- rbind(peak_parameters, rt_peak_shape)
     } else {
       # find bandwidth for these particular range
@@ -838,18 +835,18 @@ prof.to.features <- function(profile,
       rt_profile <- compute_chromatographic_profile(feature_group, base.curve)  # returns df with columns: base.curve, intensity
       if (shape_model == "Gaussian") {
         rt_peak_shape <- compute_gaussian_peak_shape(rt_profile, bw, component_eliminate, BIC_factor, aver_diff)
-      } else {
+        } else {
         rt_peak_shape <- bigauss.mix(rt_profile, sigma_ratio_lim = sigma_ratio_lim, bw = bw, moment_power = moment_power, peak_estim_method = peak_estim_method, eliminate = component_eliminate, BIC_factor = BIC_factor)$param[, c(1, 2, 3, 5)]
-      }    # rt_peak_shape should be a matrix ?
-      if (is.null(nrow(rt_peak_shape))) {  
-        peak_parameters <- rbind(peak_parameters, c(median(feature_group$mz), rt_peak_shape))
+      }
+      if (is.null(nrow(rt_peak_shape))) {  # only one peak is found
+        peak_parameters <- rbind(peak_parameters, c(median(feature_group[,'mz']), rt_peak_shape))
       }
       
-      else {
+      else {     
         for (m in 1:nrow(rt_peak_shape))  # multiple peaks
         {
           rt_diff <- abs(feature_group[, "rt"] - rt_peak_shape[m, 'miu'])
-          peak_parameters <- rbind(peak_parameters, c(mean(feature_group[which(rt_diff == min(rt_diff)), 1]), rt_peak_shape[m, ]))
+          peak_parameters <- rbind(peak_parameters, c(mean(feature_group[which(rt_diff == min(rt_diff)), 'mz']), rt_peak_shape[m, ]))
         }
       }
     }
