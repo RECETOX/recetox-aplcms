@@ -41,7 +41,7 @@ preprocess_bandwidth <- function(min_bandwidth, max_bandwidth, profile) {
     min_bandwidth <- max_bandwidth / 4
   }
 
-  return(list("min_bandwidth" = min_bandwidth, "max_bandwidth" = max_bandwidth))
+  return(data.frame("min_bandwidth" = min_bandwidth, "max_bandwidth" = max_bandwidth))
 }
 
 #' @description
@@ -147,7 +147,7 @@ solve_sigma <- function(x, t, a) {
 }
 
 #' @description
-#' Computes bi-gaussian parameters using an iterative method. 
+#' Computes bi-gaussian parameters using an iterative method - Expectation-Maximization algorithm. 
 #' @param t A vector of numerical values (rt).
 #' @param x A vector of numerical values (intensities).
 #' @param max.iter Maximum number of iterations.
@@ -307,17 +307,10 @@ compute_dx <- function(x, apply_mask=TRUE) {
 #' @export
 compute_chromatographic_profile <- function(profile, base.curve) {
   rt_range <- range(profile[, "rt"])
-  rt_profile <- as.data.frame(base.curve)[dplyr::between(base.curve[, "base.curve"], min(rt_range), max(rt_range)), ]  # list
-  rt_profile[rt_profile[, "base.curve"] %in% profile[, "rt"], 2] <- profile[, "intensity"]
-  colnames(rt_profile)[2] <- "intensity"
-  return (rt_profile)  # fix to dataframe 
-
-  # rt_profile <- as.data.frame(base.curve) |>
-  #   setNames(c("base.curve", "intensity")) |>
-  #   dplyr::filter(dplyr::between(base.curve, min(rt_range), max(rt_range)))  
-  # # Update intensities where RT matches profile
-  # matching_idx <- match(rt_profile[, "base.curve"], profile[, "rt"])
-  # rt_profile[!is.na(matching_idx), "intensity"] <- profile[na.omit(matching_idx), "intensity"]
+  rt_profile <- base.curve %>%
+    dplyr::filter(dplyr::between(base.curve, min(rt_range), max(rt_range))) %>% dplyr::mutate(intensity = 0)
+  rt_profile[rt_profile[, "base.curve"] %in% profile[, "rt"], 'intensity'] <- profile[, "intensity"]
+  return (rt_profile) 
 }
 
 #' @description
@@ -711,7 +704,6 @@ normix <- function(rt_profile, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
 #' @param aver_diff Average retention time difference across RTs of all features.
 #' @export
 normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminate = .05, max.iter = 50, BIC_factor = 2, aver_diff) {
-  # think about what to return: a whole named list? just the best params?
   rt_profile <- rt_profile |> dplyr::filter(intensity > 1e-5) |> dplyr::arrange(base.curve)
   x <- rt_profile[, 'base.curve']
   y <- rt_profile[, 'intensity']
@@ -763,7 +755,7 @@ normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminat
   record$record.smoother <- record.smoother
   record$all.param <- results
   record$bic <- record.bic
-  record$param <- results[[sel]]  # not a df, be nice to return one
+  record$param <- results[[sel]]  # is a list/matrix
   return(record)
 }
 
@@ -809,15 +801,12 @@ prof.to.features <- function(profile,
   profile <- preprocess_profile(profile)  # returns dframe with columns: mz, rt, intensity, group_number
 
   bws <- preprocess_bandwidth(min_bandwidth, max_bandwidth, profile)
-  min_bandwidth <- bws[["min_bandwidth"]]
-  max_bandwidth <- bws[["max_bandwidth"]]
+  min_bandwidth <- bws$min_bandwidth
+  max_bandwidth <- bws$max_bandwidth
 
-  # base.curve <- compute_base_curve(profile[, "rt"])
-  base.curve <- sort(unique(profile$rt)) # rt values
-  base.curve <- cbind(base.curve, base.curve * 0)
-  
-  all_diff_mean_rts <- compute_delta_rt(base.curve[, 1]) # computes diff of mean values from consecutive values 
-  aver_diff <- mean(diff(base.curve))  
+  base.curve <- data.frame('base.curve'=sort(unique(profile$rt))) # sorted unique rt values  
+  all_diff_mean_rts <- compute_delta_rt(base.curve$base.curve) # computes diff of mean values from consecutive values 
+  aver_diff <- mean(diff(base.curve$base.curve))  
 
   keys <- c("mz", "rt", "sd1", "sd2", "area")
   peak_parameters <- matrix(0, nrow = 0, ncol = length(keys), dimnames = list(NULL, keys))
@@ -834,12 +823,12 @@ prof.to.features <- function(profile,
     # The estimation procedure for a single peak
     # Defines the dataframe containing median_mz, median_rt, sd1, sd2, and area
     if (num_features < 2) {
-      time_weights <- all_diff_mean_rts[which(base.curve[, "base.curve"] %in% feature_group[2])]
-      rt_peak_shape <- c(feature_group[1], feature_group[2], NA, NA, feature_group[3] * time_weights)
+      time_weights <- all_diff_mean_rts[which(base.curve$base.curve %in% feature_group$rt)]
+      rt_peak_shape <- c(feature_group$mz, feature_group$rt, NA, NA, feature_group$intensity * time_weights)
       peak_parameters <- rbind(peak_parameters, rt_peak_shape)
     } else {
       # find bandwidth for these particular range
-      rt_range <- range(feature_group[, "rt"])
+      rt_range <- range(feature_group$rt)
       bw <- min(max(bandwidth * (max(rt_range) - min(rt_range)), min_bandwidth), max_bandwidth)
       bw <- seq(bw, 2 * bw, length.out = 3)
       if (bw[1] > 1.5 * min_bandwidth) {
@@ -851,15 +840,15 @@ prof.to.features <- function(profile,
         rt_peak_shape <- compute_gaussian_peak_shape(rt_profile, bw, component_eliminate, BIC_factor, aver_diff)
       } else {
         rt_peak_shape <- bigauss.mix(rt_profile, sigma_ratio_lim = sigma_ratio_lim, bw = bw, moment_power = moment_power, peak_estim_method = peak_estim_method, eliminate = component_eliminate, BIC_factor = BIC_factor)$param[, c(1, 2, 3, 5)]
-      }
-
+      }    # rt_peak_shape should be a matrix ?
       if (is.null(nrow(rt_peak_shape))) {  
-        peak_parameters <- rbind(peak_parameters, c(median(feature_group[, "mz"]), rt_peak_shape))
+        peak_parameters <- rbind(peak_parameters, c(median(feature_group$mz), rt_peak_shape))
       }
+      
       else {
         for (m in 1:nrow(rt_peak_shape))  # multiple peaks
         {
-          rt_diff <- abs(feature_group[, "rt"] - rt_peak_shape[m, 1])
+          rt_diff <- abs(feature_group[, "rt"] - rt_peak_shape[m, 'miu'])
           peak_parameters <- rbind(peak_parameters, c(mean(feature_group[which(rt_diff == min(rt_diff)), 1]), rt_peak_shape[m, ]))
         }
       }
