@@ -69,12 +69,12 @@ test_that("Unit testing for normix function", {
   # Test 1: small Gaussian mixture
   x <- seq(0, 6, length.out = 61)
   y <- 50 * dnorm(x, 2, 0.3) + 30 * dnorm(x, 4, 0.4)
-  that.curve <- cbind(x, y)
+  rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
 
   pks <- c(2, 4)
   vlys <- c(-Inf, 3, Inf)
   
-  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
+  actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
   expected <- cbind(
     miu = c(2, 4),
     sigma = c(0.3, 0.4),
@@ -99,10 +99,10 @@ test_that("Unit testing for normix function", {
   for (peak in peaks_def) {
     y <- y + peak$scale * dnorm(x, peak$mu, peak$sigma)
   }
-  that.curve <- cbind(x, y)
+  rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
   pks <- sapply(peaks_def, function(peak) peak$mu)
   vlys <- c(-Inf, 22, 42, 64, 87, 113, 134, 155, Inf)
-  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
+  actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
   expected <- cbind(
     miu = sapply(peaks_def, function(peak) peak$mu),
     sigma = sapply(peaks_def, function(peak) peak$sigma),
@@ -128,12 +128,12 @@ test_that("Unit testing for normix function, overlapping peaks", {
     y <- y + peak$scale * dnorm(x, peak$mu, peak$sigma)
   }
 
-  that.curve <- cbind(x, y)
+  rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
   turns <- find.turn.point(y)
-  pks <- that.curve[, 1][turns$pks]
-  vlys <- c(-Inf, that.curve[, 1][turns$vlys], Inf)
+  pks <- rt_profile[, 1][turns$pks]
+  vlys <- c(-Inf, rt_profile[, 1][turns$vlys], Inf)
   
-  actual <- normix(that.curve, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
+  actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
   expected <- cbind(
     miu = sapply(peaks_def, function(peak) peak$mu),
     sigma = sapply(peaks_def, function(peak) peak$sigma),
