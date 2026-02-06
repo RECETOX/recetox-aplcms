@@ -12,6 +12,6 @@
 aggregate_by_rt <- function(features) {
     features |>
      dplyr::group_by(rt) |>
-     dplyr::summarize(mass = median(mz[which.max(intensities)]), area = sum(intensities)) |>
-     dplyr::rename(mz = mass, intensities = area)
+     dplyr::summarize(mass = median(mz[which.max(intensity)]), area = sum(intensity)) |>
+     dplyr::rename(mz = mass, intensity = area)
 }

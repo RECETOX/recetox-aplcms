@@ -10,10 +10,10 @@
 #' @param n The number of equally spaced points at which the density is to be estimated. Default is 512.
 #' @return A density object representing the estimated density of the masses.
 #' @export
-compute_densities <- function(masses, mz_tol, intensity_weighted, intensities, bw_func, n = 512) {
+compute_densities <- function(masses, mz_tol, intensity_weighted, intensity, bw_func, n = 512) {
   bandwidth <- 0.5 * mz_tol * bw_func(masses)
   if (intensity_weighted) {
-    weights <- intensities / sum(intensities)
+    weights <- intensity / sum(intensity)
     all.mass.den <- density(masses, weights = weights, bw = bandwidth, n = n)
   } else {
     all.mass.den <- density(masses, bw = bandwidth, n = n)
@@ -117,7 +117,7 @@ adaptive.bin <- function(features,
   # init counters
   pointers <- list(curr.label = 1, prof.pointer = 1, height.pointer = 1)
 
-  breaks <- compute_breaks(mz_tol, features$mz, features$intensities, intensity_weighted)
+  breaks <- compute_breaks(mz_tol, features$mz, features$intensity, intensity_weighted)
 
   for (i in 1:(length(breaks) - 1))
   {
@@ -131,9 +131,9 @@ adaptive.bin <- function(features,
     if (length(unique(this_table$rt)) >= min_scans * min_pres) {
       # reorder in order of rt (scan number)
       this_table <- this_table |> dplyr::arrange_at("rt")
-      mass.den <- compute_densities(this_table$mz, mz_tol, intensity_weighted, this_table$intensities, median)
+      mass.den <- compute_densities(this_table$mz, mz_tol, intensity_weighted, this_table$intensity, median)
 
-      mass.den$y[mass.den$y < min(this_table$intensities) / 10] <- 0
+      mass.den$y[mass.den$y < min(this_table$intensity) / 10] <- 0
       mass.turns <- find.turn.point(mass.den$y)
       mass.pks <- mass.den$x[mass.turns$pks]
       mass.vlys <- c(-Inf, mass.den$x[mass.turns$vlys], Inf)
@@ -157,15 +157,15 @@ adaptive.bin <- function(features,
           that.range <- span(that$rt)
 
           if (that.range > 0.5 * time_range & length(that$rt) > that.range * min_pres & length(that$rt) / (that.range / aver_cycle_time) > min_pres) {
-            that$intensities <- rm.ridge(that$rt, that$intensities, bw = max(10 *min_run, that.range / 2))
+            that$intensity <- rm.ridge(that$rt, that$intensity, bw = max(10 *min_run, that.range / 2))
 
-            that <- that |> dplyr::filter(intensities != 0)
+            that <- that |> dplyr::filter(intensity != 0)
           }
 
           num_pts_in_group <- length(that$mz)
 
-          newprof[pointers$prof.pointer:(pointers$prof.pointer + num_pts_in_group - 1), ] <- cbind(that$mz, that$rt, that$intensities, rep(pointers$curr.label, num_pts_in_group))
-          height.rec[pointers$height.pointer, ] <- c(pointers$curr.label, num_pts_in_group, max(that$intensities))
+          newprof[pointers$prof.pointer:(pointers$prof.pointer + num_pts_in_group - 1), ] <- cbind(that$mz, that$rt, that$intensity, rep(pointers$curr.label, num_pts_in_group))
+          height.rec[pointers$height.pointer, ] <- c(pointers$curr.label, num_pts_in_group, max(that$intensity))
 
           # increment counters
           pointers <- increment_counter(pointers, num_pts_in_group)
@@ -178,8 +178,8 @@ adaptive.bin <- function(features,
         that.merged <- aggregate_by_rt(this_table)
         num_pts_in_group <- nrow(that.merged)
 
-        newprof[pointers$prof.pointer:(pointers$prof.pointer + num_pts_in_group - 1), ] <- cbind(that.merged$mz, that.merged$rt, that.merged$intensities, rep(pointers$curr.label, num_pts_in_group))
-        height.rec[pointers$height.pointer, ] <- c(pointers$curr.label, num_pts_in_group, max(that.merged$intensities))
+        newprof[pointers$prof.pointer:(pointers$prof.pointer + num_pts_in_group - 1), ] <- cbind(that.merged$mz, that.merged$rt, that.merged$intensity, rep(pointers$curr.label, num_pts_in_group))
+        height.rec[pointers$height.pointer, ] <- c(pointers$curr.label, num_pts_in_group, max(that.merged$intensity))
 
         # increment counters
         pointers <- increment_counter(pointers, num_pts_in_group)
@@ -192,7 +192,7 @@ adaptive.bin <- function(features,
 
   newprof <- newprof[order(newprof[, 1], newprof[, 2]), ]
 
-  newprof_tibble <- tibble::tibble(mz = newprof[, 1], rt = newprof[, 2], intensities = newprof[, 3], grps = newprof[, 4])
+  newprof_tibble <- tibble::tibble(mz = newprof[, 1], rt = newprof[, 2], intensity = newprof[, 3], grps = newprof[, 4])
 
   raw.prof <- new("list")
   raw.prof$height.rec <- height.rec

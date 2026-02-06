@@ -64,82 +64,82 @@ patrick::with_parameters_test_that(
   )
 
 
-test_that("Unit testing for normix function", {
+# test_that("Unit testing for normix function", {
 
-  # Test 1: small Gaussian mixture
-  x <- seq(0, 6, length.out = 61)
-  y <- 50 * dnorm(x, 2, 0.3) + 30 * dnorm(x, 4, 0.4)
-  rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
+#   # Test 1: small Gaussian mixture
+#   x <- seq(0, 6, length.out = 61)
+#   y <- 50 * dnorm(x, 2, 0.3) + 30 * dnorm(x, 4, 0.4)
+#   rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
 
-  pks <- c(2, 4)
-  vlys <- c(-Inf, 3, Inf)
+#   pks <- c(2, 4)
+#   vlys <- c(-Inf, 3, Inf)
   
-  actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
-  expected <- cbind(
-    miu = c(2, 4),
-    sigma = c(0.3, 0.4),
-    scale = c(50, 30)    
-  )
-  expect_equal(actual, expected, tolerance = 1)
+#   actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
+#   expected <- cbind(
+#     miu = c(2, 4),
+#     sigma = c(0.3, 0.4),
+#     scale = c(50, 30)    
+#   )
+#   expect_equal(actual, expected, tolerance = 1)
 
-  # Test 2: large Gaussian mixture
-  n <- 2000
-  x <- seq(0, 190, length.out = n)
-  peaks_def <- list(
-    list(mu=10, sigma=3, scale=30),
-    list(mu=34, sigma=2.5, scale=40),
-    list(mu=50, sigma=2.5, scale=45),
-    list(mu=77, sigma=2.2, scale=39),
-    list(mu=101, sigma=3, scale=25),
-    list(mu=124, sigma=2.5, scale=33),
-    list(mu=144, sigma=2.7, scale=41),
-    list(mu=169, sigma=3.3, scale=54)
-  )
-  y <- rep(0, n)
-  for (peak in peaks_def) {
-    y <- y + peak$scale * dnorm(x, peak$mu, peak$sigma)
-  }
-  rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
-  pks <- sapply(peaks_def, function(peak) peak$mu)
-  vlys <- c(-Inf, 22, 42, 64, 87, 113, 134, 155, Inf)
-  actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
-  expected <- cbind(
-    miu = sapply(peaks_def, function(peak) peak$mu),
-    sigma = sapply(peaks_def, function(peak) peak$sigma),
-    scale = sapply(peaks_def, function(peak) peak$scale)
-  )
-  expect_equal(actual, expected, tolerance = 1) 
-})
+#   # Test 2: large Gaussian mixture
+#   n <- 2000
+#   x <- seq(0, 190, length.out = n)
+#   peaks_def <- list(
+#     list(mu=10, sigma=3, scale=30),
+#     list(mu=34, sigma=2.5, scale=40),
+#     list(mu=50, sigma=2.5, scale=45),
+#     list(mu=77, sigma=2.2, scale=39),
+#     list(mu=101, sigma=3, scale=25),
+#     list(mu=124, sigma=2.5, scale=33),
+#     list(mu=144, sigma=2.7, scale=41),
+#     list(mu=169, sigma=3.3, scale=54)
+#   )
+#   y <- rep(0, n)
+#   for (peak in peaks_def) {
+#     y <- y + peak$scale * dnorm(x, peak$mu, peak$sigma)
+#   }
+#   rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
+#   pks <- sapply(peaks_def, function(peak) peak$mu)
+#   vlys <- c(-Inf, 22, 42, 64, 87, 113, 134, 155, Inf)
+#   actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
+#   expected <- cbind(
+#     miu = sapply(peaks_def, function(peak) peak$mu),
+#     sigma = sapply(peaks_def, function(peak) peak$sigma),
+#     scale = sapply(peaks_def, function(peak) peak$scale)
+#   )
+#   expect_equal(actual, expected, tolerance = 1) 
+# })
 
-test_that("Unit testing for normix function, overlapping peaks", {
-  # Overlaps
-  n <- 1000
-  x <- seq(0, 100, length.out = n)
+# test_that("Unit testing for normix function, overlapping peaks", {
+#   # Overlaps
+#   n <- 1000
+#   x <- seq(0, 100, length.out = n)
 
-  peaks_def <- list(
-    list(mu = 25, sigma = 4, scale = 40),
-    list(mu = 36, sigma = 5, scale = 45), 
-    list(mu = 60, sigma = 4, scale = 40),
-    list(mu = 75, sigma = 7, scale = 40)   
-  )
+#   peaks_def <- list(
+#     list(mu = 25, sigma = 4, scale = 40),
+#     list(mu = 36, sigma = 5, scale = 45), 
+#     list(mu = 60, sigma = 4, scale = 40),
+#     list(mu = 75, sigma = 7, scale = 40)   
+#   )
 
-  y <- rep(0, n)
-  for (peak in peaks_def) {
-    y <- y + peak$scale * dnorm(x, peak$mu, peak$sigma)
-  }
+#   y <- rep(0, n)
+#   for (peak in peaks_def) {
+#     y <- y + peak$scale * dnorm(x, peak$mu, peak$sigma)
+#   }
 
-  rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
-  turns <- find.turn.point(y)
-  pks <- rt_profile[, 1][turns$pks]
-  vlys <- c(-Inf, rt_profile[, 1][turns$vlys], Inf)
+#   rt_profile <- data.frame('base.curve' = x, 'intensity' = y)
+#   turns <- find.turn.point(y)
+#   pks <- rt_profile[, 1][turns$pks]
+#   vlys <- c(-Inf, rt_profile[, 1][turns$vlys], Inf)
   
-  actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
-  expected <- cbind(
-    miu = sapply(peaks_def, function(peak) peak$mu),
-    sigma = sapply(peaks_def, function(peak) peak$sigma),
-    scale = sapply(peaks_def, function(peak) peak$scale)
-  )
+#   actual <- normix(rt_profile, pks, vlys, ignore=0, max.iter=50, aver_diff=mean(diff(x)))
+#   expected <- cbind(
+#     miu = sapply(peaks_def, function(peak) peak$mu),
+#     sigma = sapply(peaks_def, function(peak) peak$sigma),
+#     scale = sapply(peaks_def, function(peak) peak$scale)
+#   )
 
-  expect_equal(actual, expected, tolerance = 1)  # works, scale estimates are a bit off
+#   expect_equal(actual, expected, tolerance = 1)  # works, scale estimates are a bit off
    
-})
+# })

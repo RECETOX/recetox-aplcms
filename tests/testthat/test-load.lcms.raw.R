@@ -24,7 +24,7 @@ testthat::test_that("load.lcms.raw reads a raw file correctly", {
   testthat::expect_equal(ncol(actual), 3)
   testthat::expect_equal(length(actual$mz), 30689)
   testthat::expect_equal(length(actual$rt), 30689)
-  testthat::expect_equal(length(actual$intensities), 30689)
+  testthat::expect_equal(length(actual$intensity), 30689)
 })
 
 testthat::test_that("load.lcms.raw correctly removes 0 intensity values with future.apply parallelism", {
@@ -36,5 +36,5 @@ testthat::test_that("load.lcms.raw correctly removes 0 intensity values with fut
   actual <- load.lcms.raw(filename, chunk_size = 100)
   plan(sequential)
 
-  testthat::expect_true(all(actual$intensities > 0), "All intensity values should be greater than 0.")
+  testthat::expect_true(all(actual$intensity > 0), "All intensity values should be greater than 0.")
 })

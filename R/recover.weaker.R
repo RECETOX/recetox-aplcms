@@ -80,10 +80,10 @@ compute_mass_density <- function(features,
                                  intensity_weighted,
                                  n = 512) {
   if (intensity_weighted) {
-    weights <- l2normalize(features$intensities)
+    weights <- l2normalize(features$intensity)
   } else {
     weights <- NULL
-  }
+  }  
   mass_density <- density(
     features$mz,
     weights = weights,
@@ -359,10 +359,8 @@ compute_pks_vlys_rt <- function(features, times, bandwidth, target_rt, recover_m
 #'   \item sigma - float - Standard deviation of retention times
 #' @export
 compute_mu_sc_std <- function(rt_profile, aver_diff) {
-  # x <- features$rt
-  # y <- features$intensities
-  x <- rt_profile[, 'base.curve']
-  y <- rt_profile[, 'intensity']
+  x <- rt_profile$rt
+  y <- rt_profile$intensity
 
   sum_y <- sum(y)
   miu <- sum(x * y) / sum_y  # weighted mean of retention time
@@ -406,16 +404,16 @@ compute_curr_rec_with_enough_peaks <- function(mz,
     dplyr::filter(between(rt, boundaries$lower, boundaries$upper))
 
   if (nrow(subset) == 1) {
-    intensity <- subset$intensities * aver_diff
+    intensity <- subset$intensity * aver_diff
     label <- subset$rt
   } else if (nrow(subset) >= 10) {
     res <- compute_mu_sc_std(subset, aver_diff)
-    intensity <- res$intensity
-    label <- res$label
+    intensity <- res$sc
+    label <- res$miu
   } else {
     intensity <- interpol.area(
       subset$rt,
-      subset$intensities,
+      subset$intensity,
       times,
       delta_rt
     )
@@ -511,7 +509,6 @@ compute_rectangle <- function(data_table,
     data_table,
     (breaks[bounds$start] + 1):breaks[bounds$end]
   ) |> dplyr::arrange_at("rt")
-
   mass.den <- compute_mass_density(
     features,
     bandwidth = 0.5 * orig_mz_tol * aligned_feature_mz,
@@ -523,7 +520,7 @@ compute_rectangle <- function(data_table,
   pks_in_tol <- abs(mass_range$pks - aligned_feature_mz) < custom_mz_tol / 1.5
   mass_range$pks <- mass_range$pks[pks_in_tol]
 
-  this.rec <- tibble::tibble(mz = Inf, rt = Inf, intensities = Inf)
+  this.rec <- tibble::tibble(mz = Inf, rt = Inf, intensity = Inf)
   for (peak in mass_range$pks) {
     # get mass values of valleys the closest to the peak
     mass <- compute_boundaries(mass_range$vlys, peak)
@@ -533,7 +530,7 @@ compute_rectangle <- function(data_table,
     # get values in RT region of interest?
     if (nrow(that) > recover_min_count) {
       that.prof <- aggregate_by_rt(that)
-      that.mass <- sum(that.prof$mz * that.prof$intensities) / sum(that.prof$intensities)
+      that.mass <- sum(that.prof$mz * that.prof$intensity) / sum(that.prof$intensity)
       curr.rec <- c(that.mass, NA, NA)
 
       if (nrow(that.prof) < 10) {
@@ -547,12 +544,12 @@ compute_rectangle <- function(data_table,
           if (length(thee.sel) > 1) {
             curr.rec[3] <- interpol.area(
               that.prof$rt[thee.sel],
-              that.prof$intensities[thee.sel],
+              that.prof$intensity[thee.sel],
               times,
               delta_rt
             )
           } else {
-            curr.rec[3] <- that.prof$intensities[thee.sel] * aver_diff
+            curr.rec[3] <- that.prof$intensity[thee.sel] * aver_diff
           }
           curr.rec[2] <- median(that.prof$rt[thee.sel])
           this.rec <- tibble::add_row(
@@ -560,15 +557,12 @@ compute_rectangle <- function(data_table,
             tibble::tibble_row(
               mz = curr.rec[1],
               rt = curr.rec[2],
-              intensities = curr.rec[3]
+              intensity = curr.rec[3]
             )
           )
         }
       } else {
-        rt_intensities <- dplyr::select(
-          that.prof,
-          all_of(c("rt", "intensities"))
-        ) |> dplyr::arrange_at("rt")
+        rt_intensities <- that.prof %>% select(rt, intensity) %>% arrange(rt)
         bw <- min(max(bandwidth * (span(rt_intensities$rt)), min_bandwidth), max_bandwidth)
 
         all <- compute_pks_vlys_rt(
@@ -595,7 +589,7 @@ compute_rectangle <- function(data_table,
             tibble::tibble_row(
               mz = curr.rec[1],
               rt = curr.rec[2],
-              intensities = curr.rec[3]
+              intensity = curr.rec[3]
             )
           )
         }
@@ -724,7 +718,6 @@ recover.weaker <- function(filename,
   # )
   # target_times <- predict(sp, aligned.ftrs[, "rt"])$y
 
-
   breaks <- predict_mz_break_indices(data_table, mz_tol)
 
   max_mz <- max(data_table$mz)
@@ -783,7 +776,7 @@ recover.weaker <- function(filename,
         extracted_features <- extracted_features |> tibble::add_row(
           mz = this.rec$mz[this.sel],
           rt = this.rec$rt[this.sel],
-          area = this.rec$intensities[this.sel]
+          area = this.rec$intensity[this.sel]
         )
 
         this.time.adjust <- (-extracted_features$rt[this.pos.diff] + adjusted_features$rt[this.pos.diff])
@@ -791,7 +784,7 @@ recover.weaker <- function(filename,
         adjusted_features <- adjusted_features |> tibble::add_row(
           mz = this.rec$mz[this.sel],
           rt = this.rec$rt[this.sel] + this.time.adjust,
-          area = this.rec$intensities[this.sel],
+          area = this.rec$intensity[this.sel],
           sample_id = sample_name
         )
       }
