@@ -173,6 +173,45 @@ compute_clusters_simple <- function(feature_tables, sample_names, mz_tol_ppm, rt
     dplyr::group_split()
 }
 
+#' Compute clusters using simple grouping based on numeric thresholds.
+#' 
+#' @describtion
+#' Features are first grouped in mz dimension based on the tolerance.
+#' First, the absolute tolerance is computed for each feature, then a new group is started
+#' once the difference between consecutive features is above this threshold.
+#' The same process is then repeated for the retention time dimension.
+#' The individual indices are then combined into a single index in the `cluster` columns.
+#' @param feature_tables list of tibbles feature tables coming from all samples.
+#' @param sample_names list of strings Sample names of the feature tables used to distinguish the samples.
+#' @param mz_tol_ppm float Relative tolerance for mz grouping in parts per million.
+#' @param rt_tol float Tolerance in retention time dimension [seconds].
+#' @param sd_ratio_tol float sd ratio tolerance to use for grouping features.
+#' @return list of tibbles Feature tables passed initially with additional columns indicating the 
+#' mz and rt groups as well as the combined cluster index.
+#' @export
+compute_clusters_simple_sd <- function(feature_tables, sample_names, mz_tol_ppm, rt_tol, sd_ratio_tol) {
+  all <- concatenate_feature_tables(feature_tables, sample_names) |> dplyr::arrange_at("mz")
+
+  mz_tol_rel <- mz_tol_ppm * 1e-06
+  mz_tol_abs <- all$mz * mz_tol_rel
+
+  all |>
+    dplyr::mutate(mz_group = cumsum(c(0, diff(mz)) > mz_tol_abs)) |>
+    dplyr::group_by(mz_group) |>
+    dplyr::arrange_at("rt") |>
+    dplyr::mutate(rt_group = cumsum(c(0, diff(rt)) > rt_tol)) |>
+    dplyr::group_by(mz_group, rt_group) |>
+    dplyr::mutate(sd_ratio = sd1 / sd2) |>
+    dplyr::arrange_at("sd_ratio") |>
+    dplyr::mutate(sd_ratio_group =  cumsum(c(0, diff(sd_ratio)) > sd_ratio_tol)) |>
+    dplyr::group_by(mz_group, rt_group, sd_ratio_group) |>
+    dplyr::mutate(cluster = cur_group_id()) |>
+    dplyr::ungroup() |>
+    dplyr::arrange_at("cluster") |>
+    dplyr::group_by(sample_id) |>
+    dplyr::group_split()
+}
+
 #' Compute clusters of mz, rt and ratio of rt sd1 and sd2 and assign cluster id to individual features.
 #'
 #' @description
@@ -293,19 +332,6 @@ compute_clusters_sd <- function(feature_tables,
   }
 
   features <- features |> dplyr::arrange_at(c("mz_group", "rt_group", "sd_ratio"))
-
-  # sd tolerance based clustering 
-  if (is.na(sd_ratio_tol_relative)) {
-    sd_ratio_tol_relative <- compute_sd_ratio_tol_relative(
-      rt_breaks,
-      max.num.segments,
-      aver.bin.size,
-      number_of_samples,
-      features$sd_ratio,
-      min.bins,
-      max.bins
-    )
-  }
 
   features$sd_ratio[!is.finite(features$sd_ratio)] <- 0
   sd_ratio_diffs <- diff(features$sd_ratio)
