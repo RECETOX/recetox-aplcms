@@ -123,46 +123,46 @@ patrick::with_parameters_test_that(
 test_that("Unit testing compute_mu_sc_std", {
 
   # Test 1: normal distribution, small dataset
-  features <- tibble(
+  rt_profile <- data.frame(
     rt = c(1, 2, 3, 4, 5),
-    intensities = dnorm(c(1, 2, 3, 4, 5), mean = 3, sd = 1) * 100 )
-  actual <- compute_mu_sc_std(features, aver_diff = 1)
+    intensity = dnorm(c(1, 2, 3, 4, 5), mean = 3, sd = 1) * 100 )
+  actual <- compute_mu_sc_std(rt_profile, aver_diff = 1)
   expected <- list(
-    intensity = 100,
-    label = 3,
-    sigma = 1
+    miu = 3,
+    sigma = 1,
+    sc = 100
   )
 
-  expect_equal(actual$intensity, expected$intensity, tolerance = 5)  # higher tolerance for smaller dataset
-  expect_equal(actual$label, expected$label, tolerance = 0.1)
+  expect_equal(actual$sc, expected$sc, tolerance = 5)  # higher tolerance for smaller dataset
+  expect_equal(actual$miu, expected$miu, tolerance = 0.1)
   expect_equal(actual$sigma, expected$sigma, tolerance = 0.1)
 
   # Test 2: larger normal dataset
-  features <- tibble::tibble(
+  rt_profile <- data.frame(
     rt = c(0:120),
-    intensities = 1000 * dnorm(0:120, mean = 60, sd = 15)
+    intensity = 1000 * dnorm(0:120, mean = 60, sd = 15)
   )
 
   expected <- list(
-    intensity = 1000,
-    label = 60,
-    sigma = 15
+    miu = 60,
+    sigma = 15,
+    sc = 1000
   )
 
-  actual <- compute_mu_sc_std(features, aver_diff = 1)
+  actual <- compute_mu_sc_std(rt_profile, aver_diff = 1)
   expect_equal(actual, expected, tolerance=0.01)
 
   # Test 4: even larger dataset
-  features <- tibble::tibble(
+  rt_profile <- data.frame(
     rt = c(0:1000),
-    intensities = 5000 * dnorm(0:1000, mean = 500, sd = 50)
+    intensity = 5000 * dnorm(0:1000, mean = 500, sd = 50)
   )
   expected <- list(
-    intensity = 5000,
-    label = 500,
-    sigma = 50
+    miu = 500,
+    sigma = 50,
+    sc = 5000
   )
-  actual <- compute_mu_sc_std(features, aver_diff = 1)
+  actual <- compute_mu_sc_std(rt_profile, aver_diff = 1)
   expect_equal(actual, expected)
 
 })
