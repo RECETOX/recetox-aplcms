@@ -280,9 +280,9 @@ get_rt_region_indices <- function(target_time, features, rt_tol) {
 #' @export
 get_features_in_rt_range <- function(features, times, bw) {
   time_curve <- times[between(times, min(features$rt), max(features$rt))]
-
+  
   this.curve <- cbind(time_curve, time_curve * 0)
-  this.curve[this.curve[, 1] %in% features$rt, 2] <- features$intensities
+  this.curve[this.curve[, 1] %in% features$rt, 2] <- features$intensity
 
   this.smooth <- ksmooth(
     this.curve[, 1],
