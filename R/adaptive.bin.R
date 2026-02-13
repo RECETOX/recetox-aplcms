@@ -5,7 +5,7 @@
 #' @param masses A numeric vector of mass values.
 #' @param mz_tol The mass-to-charge ratio tolerance.
 #' @param intensity_weighted A logical value indicating whether to weight the densities by intensities.
-#' @param intensities A numeric vector of intensity values corresponding to the masses.
+#' @param intensity A numeric vector of intensity values corresponding to the masses.
 #' @param bw_func A function to compute the bandwidth based on the masses.
 #' @param n The number of equally spaced points at which the density is to be estimated. Default is 512.
 #' @return A density object representing the estimated density of the masses.
@@ -82,7 +82,7 @@ increment_counter <- function(pointers, that.n){
 #'   \item height.rec - The records of the height of each EIC.
 #'   \item masses - The vector of m/z values after binning.
 #'   \item rt - The vector of retention time after binning.
-#'   \item intensities - The vector of intensity values after binning.
+#'   \item intensity - The vector of intensity values after binning.
 #'   \item grps - The EIC rt, i.e. which EIC each observed data point belongs to.
 #'   \item times - All the unique retention time values, ordered.
 #'   \item mz_tol - The m/z tolerance level.

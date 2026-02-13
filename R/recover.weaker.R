@@ -69,7 +69,7 @@ l2normalize <- function(x) {
 #' The function takes the mz values and uses \link[stats]{density} to
 #' compute the local density, optionally using intensity based weighting.
 #' @param mz Mass values to compute the density over.
-#' @param intensities Intensities of the peaks at mz values.
+#' @param intensity Intensities of the peaks at mz values.
 #' Only used if intensity_weighted == TRUE.
 #' @param bandwidth Bandwidth to use to compute the kernel density.
 #' @param intensity_weighted Whether to use intensity weighting or not.
@@ -269,7 +269,7 @@ get_rt_region_indices <- function(target_time, features, rt_tol) {
 
 #' Get peaks and valleys of smoothed rt values in range.
 #'
-#' @param features tibble Data table with `rt` and `intensities` columns.
+#' @param features tibble Data table with `rt` and `intensity` columns.
 #' @param times vector Raw retention time data from raw data file.
 #' @param bw float Bandwidth to use for kernel smoothing.
 #' @return Returns a list object with the following objects in it:
@@ -313,7 +313,7 @@ count_peaks <- function(roi, times) {
 
 #' Compute peaks and valleys which have at least `recover_min_count` peaks.
 #'
-#' @param features tibble Features with `mz`, `rt` and `intensities`.
+#' @param features tibble Features with `mz`, `rt` and `intensity`.
 #' @param times vector Retention time values from the raw data file.
 #' @param bandwidth float Bandwidth to use in smoothing.
 #' @param target_rt float Retention time at which to recover the intensity.
@@ -350,7 +350,7 @@ compute_pks_vlys_rt <- function(features, times, bandwidth, target_rt, recover_m
 #' Estimate the parameters of a single Gaussian peak fitted to the data: 
 #' interpolated retention time, its standard deviation, and intensity values
 #'
-#' @param features tibble Features with `rt` and `intensities` columns.
+#' @param features tibble Features with `rt` and `intensity` columns.
 #' @param aver_diff float Average retention time difference.
 #' @return Returns a list object with the following objects in it:
 #' \itemize{
@@ -383,7 +383,7 @@ compute_mu_sc_std <- function(rt_profile, aver_diff) {
 #' @param mz Mz value of the feature.
 #' @param peak Peak around which to detect the new feature.
 #' @param valleys Valley points to compute the boundary region.
-#' @param features tibble Tibble with `rt` and `intensities` column.
+#' @param features tibble Tibble with `rt` and `intensity` column.
 #' @param aver_diff float Average retention time difference.
 #' @param times vector Raw retention time values from raw data file.
 #' @param delta_rt vector Differences between consecutive retention time values (diff(times)).
@@ -466,7 +466,7 @@ compute_peaks_and_valleys <- function(dens) {
 
 #' Compute rectangle around feature with `aligned_feature_mz` and `target_rt` for recovery.
 #'
-#' @param data_table tibble Feature table with `mz`, `rt` and `intensities` column.
+#' @param data_table tibble Feature table with `mz`, `rt` and `intensity` column.
 #' @param aligned_feature_mz float Mz value of feature in aligned feature table.
 #' @param breaks vector Integer boundaries of clusters in mz values.
 #' @param custom_mz_tol float Custom mz tolerance for the feature.
@@ -481,7 +481,7 @@ compute_peaks_and_valleys <- function(dens) {
 #' @param bandwidth float Bandwidth to use in smoothing.
 #' @param min_bandwidth float Minimum bandwidth to use.
 #' @param max_bandwidth float Maximum bandwidth to use.
-#' @return tibble Tibble with `mz`, `rt` and `intensities` columns.
+#' @return tibble Tibble with `mz`, `rt` and `intensity` columns.
 #' @export 
 compute_rectangle <- function(data_table,
                               aligned_feature_mz,

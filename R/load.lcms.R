@@ -12,7 +12,7 @@ NULL
 #' \itemize{
 #'   \item mz - The vector of m/z values.
 #'   \item rt - The vector of retention times.
-#'   \item intensities - The vector of intensity values.
+#'   \item intensity - The vector of intensity values.
 #' }
 #' @export
 load.lcms <- function(filename) {

@@ -6,7 +6,7 @@
 #' \itemize{
 #'   \item mz - m/z ratio
 #'   \item rt - retention time
-#'   \item intensities - signal strength
+#'   \item intensity - signal strength
 #' }
 #' @export
 aggregate_by_rt <- function(features) {

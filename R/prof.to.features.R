@@ -832,7 +832,7 @@ prof.to.features <- function(profile,
         bw <- c(max(min_bandwidth, bw[1] / 2), bw)
       }
 
-      rt_profile <- compute_chromatographic_profile(feature_group, base.curve)  # returns df with columns: base.curve, intensity
+      rt_profile <- compute_chromatographic_profile(feature_group, base.curve)  # returns df with columns: rt, intensity
       if (shape_model == "Gaussian") {
         rt_peak_shape <- compute_gaussian_peak_shape(rt_profile, bw, component_eliminate, BIC_factor, aver_diff)
         } else {
