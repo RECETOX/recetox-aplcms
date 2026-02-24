@@ -507,71 +507,6 @@ feature_recovery <- function(cluster,
   return(recovered)
 }
 
-# #' Internal function: Adapt semi-supervised output to hybrid format.
-# #'
-# #' @description
-# #' Converts the output from semi-supervised feature detection (semi.sup function) to
-# #' the format expected by the hybrid workflow. This includes renaming columns, converting
-# #' between wide and long formats, and restructuring the feature tables.
-# #'
-# #' @param batchwise A list of batch processing results from semi.sup.
-# #' @param batches_idx A vector of batch indices.
-# #'
-# #' @return The modified batchwise list with reformatted feature tables suitable for hybrid processing.
-# #' @export
-# semisup_to_hybrid_adapter <- function(batchwise, batches_idx) {
-#   for (batch in batches_idx) {
-#     final.ftrs <- as_tibble(batchwise[[batch]]$final.ftrs)
-#     final.times <- as_tibble(batchwise[[batch]]$final.times)
-
-#     mz_pattern <- c("mz.min", "mz.max")
-#     mz_replacement <- c("mz_min", "mz_max")
-
-#     colnames(final.ftrs) <- stringr::str_replace_all(
-#       colnames(final.ftrs),
-#       mz_pattern,
-#       mz_replacement)
-
-#     colnames(final.times) <- stringr::str_replace_all(
-#       colnames(final.ftrs),
-#       mz_pattern,
-#       mz_replacement )
-
-#     feature_cols <- c("mz", "time", "mz_min", "mz_max")
-#     sample_cols_idx <- which(!colnames(final.ftrs) %in% feature_cols)
-
-#     colnames(final.ftrs)[sample_cols_idx] <- tools::file_path_sans_ext(colnames(final.ftrs)[sample_cols_idx])
-#     colnames(final.times)[sample_cols_idx] <- tools::file_path_sans_ext(colnames(final.times)[sample_cols_idx])
-
-#     sample_cols <- colnames(final.ftrs)[sample_cols_idx]
-
-#     final.ftrs <- tidyr::pivot_longer(final.ftrs,
-#       cols = all_of(sample_cols),
-#       names_to = "sample",
-#       values_to = "sample_intensity"
-#     )
-
-#     final.times <- tidyr::pivot_longer(final.times,
-#       cols = all_of(sample_cols),
-#       names_to = "sample",
-#       values_to = "sample_rt"
-#     )
-
-#     recovered_feature_sample_table <- dplyr::full_join(final.times, final.ftrs,
-#       by = c("mz", "time", "mz_min", "mz_max", "sample")
-#     )
-
-#     colnames(recovered_feature_sample_table)[2] <- "rt"
-
-#     batchwise[[batch]]$recovered_feature_sample_table <- recovered_feature_sample_table
-
-#     batchwise[[batch]]$corrected_features <- batchwise[[batch]]$features2
-#     batchwise[[batch]]$extracted_features <- batchwise[[batch]]$features
-#   }
-
-#   return(batchwise)
-# }
-
 #' Two step hybrid feature detection.
 #' 
 #' A two-stage hybrid feature detection and alignment procedure, for data generated in multiple batches.
@@ -740,7 +675,7 @@ two.step.hybrid <- function(filenames,
   doParallel::registerDoParallel(cluster)
   register_functions_to_cluster(cluster)
 
-  extracted_features <- list()
+  pseudo_features <- list()
   
   for (batch_id in batches_idx) {
     files_batch <- dplyr::filter(filenames_batchwise, batch == batch_id)$filename
@@ -753,7 +688,7 @@ two.step.hybrid <- function(filenames,
     batchwise_intensities <- batchwise_recovered_aligned$intensity
     batchwise_metadata <- batchwise_recovered_aligned$metadata[,-c(15,16)]
 
-    extracted_features[[batch_id]] <- dplyr::full_join(batchwise_metadata, batchwise_intensities, by = 'id') |> 
+    pseudo_features[[batch_id]] <- dplyr::full_join(batchwise_metadata, batchwise_intensities, by = 'id') |> 
     tidyr::pivot_longer(cols = samples_in_batch, names_to = "sample", values_to = "sample_intensity") |>
     dplyr::mutate(area = median(sample_intensity)) |>
     rename(sd1 = "sd1_mean", sd2 = "sd2_mean")
@@ -763,7 +698,7 @@ two.step.hybrid <- function(filenames,
   message("* computing clusters")
   sample_names = paste0("batch_", batches_idx)
   add_clusters <- compute_clusters(
-    feature_tables = extracted_features,
+    feature_tables = pseudo_features,
     mz_tol_relative = batch.align.mz.tol,
     mz_tol_absolute = 0.01,
     mz_max_diff = 10 * mz_tol,
@@ -773,7 +708,7 @@ two.step.hybrid <- function(filenames,
   )
 
   message("* aligning time")
-  corrected <- adjust.time(add_clusters$feature_tables, do.plot=FALSE)
+  corrected <- adjust.time(add_clusters$feature_tables, do.plot=FALSE)  # Check if it still crashing - make the do.plot work
 
   message("* aligning features")
   res <- compute_clusters(
@@ -832,12 +767,15 @@ two.step.hybrid <- function(filenames,
   features <- new("list")
   features$batchwise_features <- batchwise
   features$known_table <- merge_known_tables(batchwise, batches_idx)
-  features$aligned_features <- as_feature_sample_table(
-    metadata = aligned$rt_crosstab[, c("mz", "rt", "mzmin", "mzmax")],
-    rt_crosstab = aligned$rt_crosstab,
-    int_crosstab = aligned$int_crosstab
+  features$aligned_features <- as_feature_sample_table(         # Not sure what was aligned originally - should be the pseudotable  returned? - yes
+    metadata = aligned_features$rt_crosstab[, c("mz", "rt", "mzmin", "mzmax")],
+    rt_crosstab = aligned_features$rt_crosstab,
+    int_crosstab = aligned_features$int_crosstab
   )
-  features$corrected_features <- corrected
-  features$final_features <- recovered_features
+  # features$corrected_features <- corrected
+  features$final_features <- recovered_features   #change the format to the unified one - metadata + intensity + rt tables
   return(features)
 }
+
+# Change the testing dataset!!!!
+# Map the whole process
