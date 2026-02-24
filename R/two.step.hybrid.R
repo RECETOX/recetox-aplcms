@@ -2,16 +2,54 @@
 NULL
 #> NULL
 
+#' Internal function: Convert feature tables to crosstab format.
+#'
+#' @description
+#' Combines metadata and data tables into a single crosstab format with feature metadata
+#' columns followed by sample data columns.
+#'
+#' @param sample_names A character vector of sample names to use as column headers.
+#' @param metadata A tibble containing feature metadata (id, mz, rt, mzmin, mzmax).
+#' @param data A tibble containing sample data to be joined with metadata.
+#'
+#' @return A tibble in crosstab format with metadata columns followed by sample columns.
+#'
 #' @importFrom dplyr select inner_join
+#' @export
 as_feature_crosstab <- function(sample_names, metadata, data) {
   metadata_cols <- c('id', 'mz', 'rt', 'mzmin', 'mzmax')
   data <- select(metadata, metadata_cols) |>
-    inner_join(data, on='id')
+    inner_join(data, by ='id')
   colnames(data) <- c(metadata_cols, sample_names)
   
   return(data)
 }
 
+#' Internal function: Recover weaker signals across multiple samples.
+#'
+#' @description
+#' Performs weak signal recovery for features across multiple samples using the aligned
+#' feature table as a reference. This function parallelizes the recovery process across
+#' samples using a compute cluster.
+#'
+#' @param cluster A parallel cluster object for distributed computation.
+#' @param filenames A character vector of file paths to the raw data files.
+#' @param extracted_features A list of extracted feature tables, one per sample.
+#' @param corrected_features A list of time-corrected feature tables, one per sample.
+#' @param aligned_rt_crosstab A crosstab table of aligned retention times.
+#' @param aligned_int_crosstab A crosstab table of aligned intensities.
+#' @param original_mz_tolerance The original m/z tolerance used in feature extraction.
+#' @param aligned_mz_tolerance The m/z tolerance used in alignment.
+#' @param aligned_rt_tolerance The retention time tolerance used in alignment.
+#' @param recover_mz_range The m/z range around features to search for weak signals.
+#' @param recover_rt_range The retention time range around features to search for weak signals.
+#' @param use_observed_range Logical; whether to use observed ranges for recovery.
+#' @param min_bandwidth Minimum bandwidth for signal smoothing.
+#' @param max_bandwidth Maximum bandwidth for signal smoothing.
+#' @param recover_min_count Minimum number of data points for a recovered signal.
+#'
+#' @return A list containing extracted_features, corrected_features, rt_crosstab, and int_crosstab.
+#' @export
 recover_weaker_signals <- function(
   cluster,
   filenames,
@@ -34,40 +72,62 @@ recover_weaker_signals <- function(
   
   recovered <- lapply(seq_along(filenames), function(i) {
     recover.weaker(
-      sample_name = get_sample_name(filenames[i]),
       filename = filenames[[i]],
+      sample_name = get_sample_name(filenames[i]),
+      metadata_table = aligned_int_crosstab,
+      intensity_table = aligned_int_crosstab,
+      rt_table = aligned_rt_crosstab,
+      mz_tol_relative = aligned_mz_tolerance,
+      rt_tol_relative = aligned_rt_tolerance,
       extracted_features = as_tibble(extracted_features[[i]]),
       adjusted_features = as_tibble(corrected_features[[i]]),
-      pk.times = aligned_rt_crosstab,
-      aligned.ftrs = aligned_int_crosstab,
-      orig.tol = original_mz_tolerance,
-      align.mz.tol = aligned_mz_tolerance,
-      align.rt.tol = aligned_rt_tolerance,
       recover_mz_range = recover_mz_range,
       recover_rt_range = recover_rt_range,
-      use.observed.range = use_observed_range,
+      use_observed_range = use_observed_range,
+      mz_tol = original_mz_tolerance,
+      min_bandwidth = min_bandwidth,
+      max_bandwidth = max_bandwidth,
       bandwidth = 0.5,
-      min.bw = min_bandwidth,
-      max.bw = max_bandwidth,
-      recover.min.count = recover_min_count
+      recover_min_count = recover_min_count,
+      intensity_weighted = TRUE
     )
-  })
-  
-  feature_table <- aligned_rt_crosstab[, 1:4]
-  rt_crosstab <- cbind(feature_table, sapply(recovered, function(x) x$this.times))
-  int_crosstab <- cbind(feature_table, sapply(recovered, function(x) x$this.ftrs))
-  
-  feature_names <- rownames(feature_table)
-  sample_names <- colnames(aligned_rt_crosstab[, -(1:4)])
-  
-  list(
-    extracted_features = lapply(recovered, function(x) x$this.f1),
-    corrected_features = lapply(recovered, function(x) x$this.f2),
-    rt_crosstab = as_feature_crosstab(feature_names, sample_names, rt_crosstab),
-    int_crosstab = as_feature_crosstab(feature_names, sample_names, int_crosstab)
+  })   
+
+  sample_names <- get_sample_name(filenames)
+  adjusted_features <- lapply(recovered, function(x) x$adjusted_features)
+
+  res <- compute_clusters(
+    feature_tables = adjusted_features,
+    mz_tol_relative = aligned_mz_tolerance,
+    mz_tol_absolute = 0.01,
+    mz_max_diff = 10 * aligned_mz_tolerance,        # also a bit mysterious, took 10 from the main two.step.hybrid(), but not sure if correct
+    rt_tol_relative = aligned_rt_tolerance,
+    do.plot = FALSE,
+    sample_names = sample_names
   )
+  
+  aligned_features <- create_aligned_feature_table(
+    dplyr::bind_rows(res$feature_tables),
+    ceiling(0.5 * length(sample_names)),      # find out what the min_occurance actually should relate to
+    sample_names,
+    res$rt_tol_relative,
+    res$mz_tol_relative
+   )
+
+  return(aligned_features)
 }
 
+#' Internal function: Pivot feature values from long to wide format.
+#'
+#' @description
+#' Converts a long-format feature table to wide format by pivoting sample-specific
+#' values (RT or intensity) into separate columns for each sample.
+#'
+#' @param feature_table A tibble in long format with columns: mz, rt, sample, and sample-specific values.
+#' @param variable A character string specifying which variable to pivot ("rt" or "intensity").
+#'
+#' @return A tibble in wide format with one row per feature (mz, rt) and one column per sample.
+#' @export
 pivot_feature_values <- function(feature_table, variable) {
   extended_variable <- paste0("sample_", variable)
   values <- dplyr::select(feature_table, mz, rt, sample, !!sym(extended_variable))
@@ -78,6 +138,16 @@ pivot_feature_values <- function(feature_table, variable) {
   return(values)
 }
 
+#' Internal function: Convert feature table from long to wide format.
+#'
+#' @description
+#' Transforms a long-format feature table (one row per feature-sample combination) into
+#' wide format (one row per feature with sample data in columns).
+#'
+#' @param feature_table A tibble in long format with columns: mz, rt, sample, sample_rt, sample_intensity.
+#'
+#' @return A tibble in wide format with columns: mz, rt, and sample-specific RT and intensity columns.
+#' @export
 long_to_wide_feature_table <- function(feature_table) {
   sample_rts <- pivot_feature_values(feature_table, "rt")
   sample_intensities <- pivot_feature_values(feature_table, "intensity")
@@ -87,6 +157,17 @@ long_to_wide_feature_table <- function(feature_table) {
     dplyr::inner_join(sample_intensities, by = c("mz", "rt"))
 }
 
+#' Internal function: Convert feature table from wide to long format.
+#'
+#' @description
+#' Transforms a wide-format feature table (one row per feature with sample data in columns)
+#' into long format (one row per feature-sample combination).
+#'
+#' @param wide_table A tibble in wide format with sample-specific RT and intensity columns.
+#' @param sample_names A character vector of sample names (currently unused in implementation).
+#'
+#' @return A tibble in long format with columns: feature, mz, rt, mz_min, mz_max, sample, sample_rt, sample_intensity.
+#' @export
 wide_to_long_feature_table <- function(wide_table, sample_names) {
   wide_table <- tibble::rowid_to_column(wide_table, "feature")
   
@@ -97,7 +178,7 @@ wide_to_long_feature_table <- function(wide_table, sample_names) {
     dplyr::select(-contains("_rt")) %>%
     mutate(sample = stringr::str_remove_all(sample, "_intensity"))
   
-  long_features <- dplyr::full_join(long_rt, long_int, by = c("feature", "mz", "rt", "mz_min", "mz_max", "sample"))
+  long_features <- dplyr::full_join(long_rt, long_int, by = c("feature", "mz", "rt", "mzmin", "mzmax", "sample"))
   
   return(long_features)
 }
@@ -108,24 +189,45 @@ wide_to_long_feature_table <- function(wide_table, sample_names) {
 #' @param dataframe A dataframe from which to extract column names.
 #' @param pattern A character string containing the pattern to match in the column names.
 #' @return A character vector of column names that match the specified pattern.
+#' @export
 extract_pattern_colnames <- function(dataframe, pattern) {
   dataframe <- dplyr::select(dataframe, contains(pattern))
   return(colnames(dataframe))
 }
 
+#' Internal function: Convert aligned feature tables to wide format.
+#'
+#' @description
+#' Transforms aligned feature tables (RT and intensity crosstabs) into a single wide-format
+#' table suitable for downstream analysis.
+#'
+#' @param aligned A list containing rt_crosstab and int_crosstab elements.
+#'
+#' @return A tibble in wide format with feature metadata and sample-specific RT and intensity values.
+#' @export
 as_wide_aligned_table <- function(aligned) {
-  mz_scale_table <- aligned$rt_crosstab[, c("mz", "rt", "mz_min", "mz_max")]
+  mz_scale_table <- aligned$metadata[, c("mz", "rt", "mzmin", "mzmax")]
   aligned <- as_feature_sample_table(
-    metadata = aligned$rt_crosstab[, c("mz", "rt", "mz_min", "mz_max")],
-    rt_crosstab = aligned$rt_crosstab,
-    int_crosstab = aligned$int_crosstab
+    metadata = aligned$metadata,
+    rt_crosstab = aligned$rt,
+    int_crosstab = aligned$int
   )
   aligned <- long_to_wide_feature_table(aligned)
   aligned <- dplyr::inner_join(aligned, mz_scale_table, by = c("mz", "rt"))
   return(aligned)
 }
 
-
+#' Internal function: Merge known feature tables from multiple batches.
+#'
+#' @description
+#' Combines the updated known feature tables from multiple batch processing results
+#' into a single comprehensive known feature table.
+#'
+#' @param batchwise A list of batch processing results, each containing an updated.known.table.
+#' @param batches_idx A vector of batch indices to process.
+#'
+#' @return A tibble containing the merged known feature table with standardized columns.
+#' @export
 merge_known_tables <- function(batchwise, batches_idx) {
   colnames <- c("chemical_formula", "HMDB_ID", "KEGG_compound_ID", "mass", "ion.type", "m.z",
               "Number_profiles_processed", "Percent_found", "mz_min", "mz_max", 
@@ -154,12 +256,27 @@ merge_known_tables <- function(batchwise, batches_idx) {
   )
 
   for (batch in batches_idx) {
-    known_table <- dplyr::full_join(known_table, batchwise[[batch]]$updated.known.table, by = colnames)
+    known_table <- dplyr::full_join(known_table, batchwise[[batch]]$updated_known_table, by = colnames)
   }
 
   return(known_table)
 }
 
+#' Internal function: Filter features based on presence criteria.
+#'
+#' @description
+#' Filters features based on their presence across samples within batches and across batches.
+#' A feature must be present in a minimum proportion of samples within batches and in a
+#' minimum proportion of batches to be retained.
+#'
+#' @param feature_table A tibble containing feature data with intensity columns.
+#' @param metadata A tibble containing sample metadata with batch information.
+#' @param batches_idx A vector of batch indices.
+#' @param within_batch_threshold The minimum proportion of samples within a batch where a feature must be present.
+#' @param across_batch_threshold The minimum proportion of batches where a feature must meet the within-batch threshold.
+#'
+#' @return A filtered feature table containing only features meeting the presence criteria.
+#' @export
 filter_features_by_presence <- function(feature_table,
                                         metadata,
                                         batches_idx,
@@ -182,6 +299,17 @@ filter_features_by_presence <- function(feature_table,
   return(feature_table[above_threshold, ])
 }
 
+#' Internal function: Readjust retention times to match between-batch alignment.
+#'
+#' @description
+#' Adjusts the retention times in within-batch corrected features to match the
+#' retention times from between-batch alignment, ensuring consistency across batches.
+#'
+#' @param within_batch A list containing recovered_feature_sample_table and corrected_features.
+#' @param between_batch A list containing the rt (retention time) table from between-batch alignment.
+#'
+#' @return A list of corrected feature tables with adjusted retention times.
+#' @export
 readjust_times <- function(within_batch, between_batch) {
   within_batch_recovered <- long_to_wide_feature_table(
     within_batch$recovered_feature_sample_table
@@ -191,15 +319,25 @@ readjust_times <- function(within_batch, between_batch) {
     for (i in 1:nrow(within_batch$corrected_features[[j]])) {
       diff.time <- abs(
         within_batch_recovered$rt -
-          within_batch$corrected_features[[j]][i, "pos"]
+          within_batch$corrected_features[[j]][i, "rt"]
       )
       min_idx <- which(diff.time == min(diff.time))[1]
-      within_batch$corrected_features[[j]][i, "pos"] <- between_batch_rts[min_idx]
+      within_batch$corrected_features[[j]][i, "rt"] <- between_batch_rts[min_idx]
     }
   }
   return(within_batch$corrected_features)
 }
 
+#' Internal function: Compute median intensities for features.
+#'
+#' @description
+#' Calculates the median intensity for each feature across all samples in which it appears.
+#' The median is computed by grouping features by their m/z and retention time.
+#'
+#' @param feature_table A tibble containing feature data with a sample_intensity column.
+#'
+#' @return The feature table with an additional median_intensity column.
+#' @export
 compute_intensity_medians <- function(feature_table) {
   stopifnot("sample_intensity" %in% colnames(feature_table))
   feature_table <- dplyr::group_by(feature_table, mz, rt) %>%
@@ -208,6 +346,17 @@ compute_intensity_medians <- function(feature_table) {
   return(feature_table)
 }
 
+#' Internal function: Bind batch labels to filenames.
+#'
+#' @description
+#' Combines filename information with metadata by matching sample names, adding batch
+#' labels to each filename for batch-wise processing.
+#'
+#' @param filenames A character vector of file paths.
+#' @param metadata A tibble containing sample_name and batch columns.
+#'
+#' @return A tibble with filename and batch columns.
+#' @export
 bind_batch_label_column <- function(filenames, metadata) {
   stopifnot(nrow(metadata) == length(filenames))
 
@@ -218,6 +367,32 @@ bind_batch_label_column <- function(filenames, metadata) {
   return(dplyr::select(filenames, -sample_name))
 }
 
+#' Internal function: Recover features across batches.
+#'
+#' @description
+#' Performs comprehensive feature recovery across multiple batches by matching features
+#' from within-batch processing to between-batch aligned features, then performing
+#' weak signal recovery for each batch.
+#'
+#' @param cluster A parallel cluster object for distributed computation.
+#' @param step_one_features A list of feature tables from initial batch processing.
+#' @param batchwise A list of batch processing results.
+#' @param filenames_batchwise A tibble containing filename and batch information.
+#' @param corrected A list of time-corrected feature tables for between-batch alignment.
+#' @param aligned A wide-format aligned feature table from between-batch alignment.
+#' @param batches_idx A vector of batch indices.
+#' @param mz.tol The m/z tolerance for feature matching.
+#' @param batch.align.mz.tol The m/z tolerance for batch alignment.
+#' @param batch.align.rt.tol The retention time tolerance for batch alignment.
+#' @param recover.mz.range The m/z range for weak signal recovery.
+#' @param recover.rt.range The retention time range for weak signal recovery.
+#' @param use.observed.range Logical; whether to use observed ranges.
+#' @param min.bw Minimum bandwidth for smoothing.
+#' @param max.bw Maximum bandwidth for smoothing.
+#' @param recover.min.count Minimum count for recovered signals.
+#'
+#' @return A tibble containing recovered features across all batches in wide format.
+#' @export
 feature_recovery <- function(cluster,
                              step_one_features,
                              batchwise,
@@ -237,10 +412,11 @@ feature_recovery <- function(cluster,
   recovered <- tibble(
     mz = numeric(),
     rt = numeric(),
-    mz_min = numeric(),
-    mz_max = numeric()
+    mzmin = numeric(),
+    mzmax = numeric()
   )
 
+  # Need to refactor this
   for (batch_id in batches_idx)
   {
     this.fake <- long_to_wide_feature_table(step_one_features[[batch_id]])
@@ -249,38 +425,43 @@ feature_recovery <- function(cluster,
     # adjusting the time (already within batch adjusted)
     this.features <- readjust_times(batchwise[[batch_id]], corrected[[batch_id]])
     aligned_intensities <- dplyr::select(aligned, contains("_intensity"))
-    batchwise_intensities <- dplyr::select(this.fake, contains("_intensity"))
+    batchwise_intensities <- as.matrix(dplyr::select(this.fake, contains("_intensity")))
 
-    this.fake.time <- dplyr::select(this.fake, contains("_rt"))
+    this.fake.time <- as.matrix(dplyr::select(this.fake, contains("_rt")))
     this.pk.time <- this.aligned <- matrix(0, nrow = nrow(aligned), ncol = ncol(batchwise_intensities))
 
     for (sample in 1:nrow(aligned)) {
+      # Present in aligned data
       if (aligned_intensities[sample, batch_id] != 0) {
-        idx <- which(between(this.fake$mz, aligned[sample, "mz_min"], aligned[sample, "mz_max"]) &
+        idx <- which(between(this.fake$mz, aligned[sample, "mzmin"], aligned[sample, "mzmax"]) &
           abs(this.fake.medians - aligned_intensities[sample, batch_id]) < 1)
+        
         if (length(idx) < 1) {
-          idx <- which(between(this.fake$mz, aligned[sample, "mz_min"], aligned[sample, "mz_max"]))
+          idx <- which(between(this.fake$mz, aligned[sample, "mzmin"], aligned[sample, "mzmax"]))
         }
+        
         if (length(idx) < 1) {
           message("warning: batch ", batch_id, " sample ", sample, " has matching issue")
         } else {
-          this.aligned[sample, ] <- apply(batchwise_intensities[idx, ], 2, sum)
-          this.pk.time[sample, ] <- apply(this.fake.time[idx, ], 2, median)
+          this.aligned[sample, ] <- as.numeric(apply(batchwise_intensities[idx, ,drop = FALSE], 2, sum))
+          this.pk.time[sample, ] <- as.numeric(apply(this.fake.time[idx, ,drop = FALSE], 2, median))
         }
-      } else {
-        ### go into individual feature tables to find a match
+      } 
+      
+      else {
+        ### go into individual feature tables to find a match - missing from aligned data, recapturing from individual features
         recaptured <- rep(0, ncol(this.aligned))
         recaptured.time <- rep(NA, ncol(this.aligned))
 
         for (j in 1:length(this.features)) {
           diff.mz <- abs(this.features[[j]][, "mz"] - aligned[sample, "mz"])
-          diff.time <- abs(this.features[[j]][, "pos"] - aligned[sample, "rt"])
+          diff.time <- abs(this.features[[j]][, "rt"] - aligned[sample, "rt"])
           idx <- which(diff.mz < aligned[sample, "mz"] * batch.align.mz.tol & diff.time <= batch.align.rt.tol)
 
           if (length(idx) > 0) {
-            idx <- idx[which(diff.time[idx] == min(diff.time[idx]))[1]]
-            recaptured[j] <- this.features[[j]][idx, "area"]
-            recaptured.time[j] <- this.features[[j]][idx, "pos"]
+            idx <- idx[which(diff.time[idx,] == min(diff.time[idx,]))[1]]
+            recaptured[j] <- as.numeric(this.features[[j]][idx, "area"])
+            recaptured.time[j] <- as.numeric(this.features[[j]][idx, "rt"])
           }
         }
         this.aligned[sample, ] <- recaptured
@@ -294,9 +475,10 @@ feature_recovery <- function(cluster,
     colnames(this.pk.time) <- stringr::str_remove_all(colnames(this.pk.time), "_rt")
 
 
-    aligned_features <- dplyr::select(aligned, mz, rt, mz_min, mz_max)
+    aligned_features <- dplyr::select(aligned, mz, rt, mzmin, mzmax)
     aligned_int_crosstab <- dplyr::bind_cols(aligned_features, as_tibble(this.aligned))
     aligned_rt_crosstab <- dplyr::bind_cols(aligned_features, as_tibble(this.pk.time))
+    
     recovered_batchwise <- recover_weaker_signals(
       cluster = cluster,
       filenames = filter(filenames_batchwise, batch == batch_id)$filename,
@@ -307,8 +489,8 @@ feature_recovery <- function(cluster,
       original_mz_tolerance = mz.tol,
       aligned_mz_tolerance = batch.align.mz.tol,
       aligned_rt_tolerance = batch.align.rt.tol,
-      mz_range = recover.mz.range,
-      rt_range = recover.rt.range,
+      recover_mz_range = recover.mz.range,
+      recover_rt_range = recover.rt.range,
       use_observed_range = use.observed.range,
       min_bandwidth = min.bw,
       max_bandwidth = max.bw,
@@ -317,65 +499,78 @@ feature_recovery <- function(cluster,
 
     recovered_batchwise <- as_wide_aligned_table(recovered_batchwise)
 
-    recovered <- dplyr::full_join(recovered, recovered_batchwise, by = c("mz", "rt", "mz_min", "mz_max"))
+    recovered <- dplyr::full_join(recovered, recovered_batchwise, by = c("mz", "rt", "mzmin", "mzmax"))
   }
-  recovered <- dplyr::select(recovered, mz, rt, mz_min, mz_max, contains("_rt"), contains("_intensity"))
+
+  recovered <- dplyr::select(recovered, mz, rt, mzmin, mzmax, contains("_rt"), contains("_intensity"))
 
   return(recovered)
 }
 
-semisup_to_hybrid_adapter <- function(batchwise, batches_idx) {
-  for (batch in batches_idx) {
-    final.ftrs <- as_tibble(batchwise[[batch]]$final.ftrs)
-    final.times <- as_tibble(batchwise[[batch]]$final.times)
+# #' Internal function: Adapt semi-supervised output to hybrid format.
+# #'
+# #' @description
+# #' Converts the output from semi-supervised feature detection (semi.sup function) to
+# #' the format expected by the hybrid workflow. This includes renaming columns, converting
+# #' between wide and long formats, and restructuring the feature tables.
+# #'
+# #' @param batchwise A list of batch processing results from semi.sup.
+# #' @param batches_idx A vector of batch indices.
+# #'
+# #' @return The modified batchwise list with reformatted feature tables suitable for hybrid processing.
+# #' @export
+# semisup_to_hybrid_adapter <- function(batchwise, batches_idx) {
+#   for (batch in batches_idx) {
+#     final.ftrs <- as_tibble(batchwise[[batch]]$final.ftrs)
+#     final.times <- as_tibble(batchwise[[batch]]$final.times)
 
-    mz_pattern <- c("mz.min", "mz.max")
-    mz_replacement <- c("mz_min", "mz_max")
+#     mz_pattern <- c("mz.min", "mz.max")
+#     mz_replacement <- c("mz_min", "mz_max")
 
-    colnames(final.ftrs) <- stringr::str_replace_all(
-      colnames(final.ftrs),
-      mz_pattern,
-      mz_replacement)
+#     colnames(final.ftrs) <- stringr::str_replace_all(
+#       colnames(final.ftrs),
+#       mz_pattern,
+#       mz_replacement)
 
-    colnames(final.times) <- stringr::str_replace_all(
-      colnames(final.ftrs),
-      mz_pattern,
-      mz_replacement )
+#     colnames(final.times) <- stringr::str_replace_all(
+#       colnames(final.ftrs),
+#       mz_pattern,
+#       mz_replacement )
 
-    feature_cols <- c("mz", "time", "mz_min", "mz_max")
-    sample_cols_idx <- which(!colnames(final.ftrs) %in% feature_cols)
+#     feature_cols <- c("mz", "time", "mz_min", "mz_max")
+#     sample_cols_idx <- which(!colnames(final.ftrs) %in% feature_cols)
 
-    colnames(final.ftrs)[sample_cols_idx] <- tools::file_path_sans_ext(colnames(final.ftrs)[sample_cols_idx])
-    colnames(final.times)[sample_cols_idx] <- tools::file_path_sans_ext(colnames(final.times)[sample_cols_idx])
+#     colnames(final.ftrs)[sample_cols_idx] <- tools::file_path_sans_ext(colnames(final.ftrs)[sample_cols_idx])
+#     colnames(final.times)[sample_cols_idx] <- tools::file_path_sans_ext(colnames(final.times)[sample_cols_idx])
 
-    sample_cols <- colnames(final.ftrs)[sample_cols_idx]
+#     sample_cols <- colnames(final.ftrs)[sample_cols_idx]
 
-    final.ftrs <- tidyr::pivot_longer(final.ftrs,
-      cols = all_of(sample_cols),
-      names_to = "sample",
-      values_to = "sample_intensity"
-    )
+#     final.ftrs <- tidyr::pivot_longer(final.ftrs,
+#       cols = all_of(sample_cols),
+#       names_to = "sample",
+#       values_to = "sample_intensity"
+#     )
 
-    final.times <- tidyr::pivot_longer(final.times,
-      cols = all_of(sample_cols),
-      names_to = "sample",
-      values_to = "sample_rt"
-    )
+#     final.times <- tidyr::pivot_longer(final.times,
+#       cols = all_of(sample_cols),
+#       names_to = "sample",
+#       values_to = "sample_rt"
+#     )
 
-    recovered_feature_sample_table <- dplyr::full_join(final.times, final.ftrs,
-      by = c("mz", "time", "mz_min", "mz_max", "sample")
-    )
+#     recovered_feature_sample_table <- dplyr::full_join(final.times, final.ftrs,
+#       by = c("mz", "time", "mz_min", "mz_max", "sample")
+#     )
 
-    colnames(recovered_feature_sample_table)[2] <- "rt"
+#     colnames(recovered_feature_sample_table)[2] <- "rt"
 
-    batchwise[[batch]]$recovered_feature_sample_table <- recovered_feature_sample_table
+#     batchwise[[batch]]$recovered_feature_sample_table <- recovered_feature_sample_table
 
-    batchwise[[batch]]$corrected_features <- batchwise[[batch]]$features2
-    batchwise[[batch]]$extracted_features <- batchwise[[batch]]$features
-  }
+#     batchwise[[batch]]$corrected_features <- batchwise[[batch]]$features2
+#     batchwise[[batch]]$extracted_features <- batchwise[[batch]]$features
+#   }
 
-  return(batchwise)
-}
+#   return(batchwise)
+# }
 
 #' Two step hybrid feature detection.
 #' 
@@ -484,6 +679,7 @@ two.step.hybrid <- function(filenames,
                             intensity.weighted = FALSE,
                             BIC.factor = 2,
                             do.plot = FALSE) {
+
   filenames_batchwise <- bind_batch_label_column(filenames, metadata)
   batches_idx <- unique(metadata$batch)
   batchwise <- new("list")
@@ -493,34 +689,8 @@ two.step.hybrid <- function(filenames,
 
   for (batch.i in batches_idx) {
     files_batch <- dplyr::filter(filenames_batchwise, batch == batch.i)$filename
-    message("* processing ", length(files_batch), " samples from batch ", batch.i)
-
-    # features <- semi.sup(
-    #   files = files_batch,
-    #   folder = work_dir,
-    #   n.nodes = cluster,
-    #   known.table = known.table,
-    #   sd.cut = sd.cut,
-    #   sigma.ratio.lim = sigma.ratio.lim,
-    #   component.eliminate = component.eliminate,
-    #   moment.power = moment.power,
-    #   min.pres = min.pres,
-    #   min.run = min.run,
-    #   min.exp = ceiling(min.within.batch.prop.detect * length(files_batch)),
-    #   mz.tol = mz.tol,
-    #   baseline.correct.noise.percentile = baseline.correct.noise.percentile,
-    #   baseline.correct = baseline.correct,
-    #   align.mz.tol = align.mz.tol,
-    #   align.rt.tol = align.rt.tol,
-    #   max.align.mz.diff = max.align.mz.diff,
-    #   recover.mz.range = recover.mz.range,
-    #   recover.rt.range = recover.rt.range,
-    #   use.observed.range = use.observed.range,
-    #   shape.model = shape.model,
-    #   new.feature.min.count = new.feature.min.count,
-    #   recover.min.count = recover.min.count,
-    #   sample_names = sample_names
-    # )
+    samples_in_batch <- get_sample_name(files_batch)
+    message("* processing ", length(files_batch), " samples from batch ", batch.i, ": ", list(samples_in_batch))
 
     features <- hybrid(
       filenames = files_batch,
@@ -556,54 +726,56 @@ two.step.hybrid <- function(filenames,
       cluster = cluster
       # grouping_threshold = Inf
     )
-
-    features$final.ftrs <- features$final.ftrs[order(features$final.ftrs[, 1], features$final.ftrs[, 2]), ]
-    features$final.times <- features$final.times[order(features$final.times[, 1], features$final.times[, 2]), ]
-
     batchwise[[batch.i]] <- features
   }
-
-  batchwise <- semisup_to_hybrid_adapter(batchwise, batches_idx)
 
   step_one_features <- list()
   for (batch_id in batches_idx) {
     step_one_features[[batch_id]] <- compute_intensity_medians(
       batchwise[[batch_id]]$recovered_feature_sample_table
-    ) %>%
-      dplyr::select(-c("mz_min", "mz_max"))
+    )
   }
 
   cluster <- parallel::makeCluster(cluster)
   doParallel::registerDoParallel(cluster)
-  # snow::clusterEvalQ(cluster, library(recetox.aplcms))
   register_functions_to_cluster(cluster)
 
   extracted_features <- list()
+  
   for (batch_id in batches_idx) {
-    extracted <- batchwise[[batch_id]]$recovered_feature_sample_table
-    extracted <- long_to_wide_feature_table(extracted)
-    intensities <- dplyr::select(extracted, contains("_intensity"))
-    median_intensity <- apply(intensities, 1, median)
-    extracted <- dplyr::select(extracted, mz, rt)
-    extracted[, 3:4] <- NA
-    colnames(extracted)[3:4] <- c("mz_min", "mz_max")
-    extracted[, 5] <- median_intensity
-    colnames(extracted)[5] <- "median_intensity"
-    extracted_features[[batch_id]] <- extracted
+    files_batch <- dplyr::filter(filenames_batchwise, batch == batch_id)$filename
+    samples_in_batch <- get_sample_name(files_batch)
+    #rewrite so that:
+    ## medians of intensities from the recovered_aligned_features$intensity are calculated
+    ## join new median intensities with recovered_aligned_features$meatadata on feature id
+    ## this is still done per batch
+    batchwise_recovered_aligned <- batchwise[[batch_id]]$recovered_aligned_features 
+    batchwise_intensities <- batchwise_recovered_aligned$intensity
+    batchwise_metadata <- batchwise_recovered_aligned$metadata[,-c(15,16)]
+
+    extracted_features[[batch_id]] <- dplyr::full_join(batchwise_metadata, batchwise_intensities, by = 'id') |> 
+    tidyr::pivot_longer(cols = samples_in_batch, names_to = "sample", values_to = "sample_intensity") |>
+    dplyr::mutate(area = median(sample_intensity)) |>
+    rename(sd1 = "sd1_mean", sd2 = "sd2_mean")
+
   }
 
-  message("* aligning time")
-  corrected <- adjust.time(extracted_features,
+  message("* computing clusters")
+  sample_names = paste0("batch_", batches_idx)
+  add_clusters <- compute_clusters(
+    feature_tables = extracted_features,
     mz_tol_relative = batch.align.mz.tol,
-    rt_tol_relative = batch.align.rt.tol,
-    mz_max_diff = 10 * mz.tol,
-    mz_tol_absolute = max.align.mz.diff,
-    rt_colname = "rt"
+    mz_tol_absolute = 0.01,
+    mz_max_diff = 10 * mz_tol,
+    rt_tol_relative = 10,
+    do.plot = FALSE,
+    sample_names = sample_names
   )
 
+  message("* aligning time")
+  corrected <- adjust.time(add_clusters$feature_tables, do.plot=FALSE)
+
   message("* aligning features")
-  sample_names = paste0("batch_", batches_idx)
-  
   res <- compute_clusters(
       corrected,
       batch.align.mz.tol,
@@ -622,17 +794,7 @@ two.step.hybrid <- function(filenames,
       res$mz_tol_relative
   )
   
-  aligned_features$mz_tol_relative <- res$mz_tol_relative
-  aligned_features$rt_tol_relative <- res$rt_tol_relative
-  
-  aligned <- list(
-      mz_tolerance = as.numeric(aligned_features$mz_tol_relative),
-      rt_tolerance = as.numeric(aligned_features$rt_tol_relative),
-      rt_crosstab = as_feature_crosstab(sample_names, aligned_features$metadata, aligned_features$rt),
-      int_crosstab = as_feature_crosstab(sample_names, aligned_features$metadata, aligned_features$intensity)
-  )
-
-  aligned_wide <- as_wide_aligned_table(aligned)
+  aligned_wide <- as_wide_aligned_table(aligned_features)
 
   message("* recovering features across batches")
   recovered <- feature_recovery(
@@ -671,7 +833,7 @@ two.step.hybrid <- function(filenames,
   features$batchwise_features <- batchwise
   features$known_table <- merge_known_tables(batchwise, batches_idx)
   features$aligned_features <- as_feature_sample_table(
-    metadata = aligned$rt_crosstab[, c("mz", "rt", "mz_min", "mz_max")],
+    metadata = aligned$rt_crosstab[, c("mz", "rt", "mzmin", "mzmax")],
     rt_crosstab = aligned$rt_crosstab,
     int_crosstab = aligned$int_crosstab
   )
@@ -679,32 +841,3 @@ two.step.hybrid <- function(filenames,
   features$final_features <- recovered_features
   return(features)
 }
-
-# files <- c(
-#     # "mbr_test0.mzml",
-#     # "mbr_test1.mzml",
-#     # "mbr_test2.mzml",
-#     # "mbr_test0_copy.mzml"
-#     "RCX_06_shortened.mzML", 
-#     "RCX_07_shortened.mzML", 
-#     "RCX_08_shortened.mzML",
-#     "RCX_06_shortened_copy.mzML" 
-# )
-
-# test_path <- file.path(".", "tests", "testdata")
-# test_files <- sapply(files, function(x) {
-#   file.path(test_path, "input", x)
-# })
-  
-# metadata <- read.table("./tests/testdata/two_step_hybrid_info.csv", sep = ",", header = TRUE)
-
-# expected_final_features <- readRDS("./tests/testdata/final_ftrs.Rda")
-# known_table <- file.path("./tests/testdata", "hybrid", "known_table.parquet")
-
-# two.step.hybrid(
-#   filenames = test_files,
-#   metadata = metadata,
-#   work_dir = tempdir,
-#   known.table = known_table,
-#   cluster = get_num_workers()
-#   )
