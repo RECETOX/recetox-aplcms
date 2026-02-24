@@ -154,6 +154,7 @@ register_functions_to_cluster <- function(cluster) {
 #' 
 #' @param features list List of tibbles containing extracted feature tables.
 #' @export
+#' @export
 concatenate_feature_tables <- function(features, sample_names) {
     for (i in seq_along(features)) {
         if(!("sample_id" %in% colnames(features[[i]]))) {
@@ -227,6 +228,7 @@ get_num_workers <- function() {
     return(num_workers)
 }
 
+#' @export
 #' @export
 read_parquet_files <- function(filename, folder, pattern) {
   testdata <- file.path("..", "testdata")

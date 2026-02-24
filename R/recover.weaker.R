@@ -347,7 +347,8 @@ compute_pks_vlys_rt <- function(features, times, bandwidth, target_rt, recover_m
   return(list(pks = pks, vlys = vlys))
 }
 
-#' Compute interpolated retention time, its standard deviation, and intensity values,.
+#' Estimate the parameters of a single Gaussian peak fitted to the data: 
+#' interpolated retention time, its standard deviation, and intensity values
 #'
 #' @param features tibble Features with `rt` and `intensities` columns.
 #' @param aver_diff float Average retention time difference.
@@ -362,7 +363,7 @@ compute_mu_sc_std <- function(features, aver_diff) {
   y <- features$intensities
 
   sum_y <- sum(y)
-  miu <- sum(x * y) / sum_y # weighted retention time values
+  miu <- sum(x * y) / sum_y  # weighted mean of retention time
   sigma <- sqrt(sum(y * (x - miu)^2) / sum_y)
   if (sigma == 0) {
     sc <- sum_y * aver_diff

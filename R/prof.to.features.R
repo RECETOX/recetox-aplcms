@@ -85,6 +85,11 @@ preprocess_profile <- function(profile) {
 #' @export
 compute_gaussian_peak_shape <- function(rt_profile, bw, component_eliminate, BIC_factor, aver_diff) {
   rt_peak_shape <- normix.bic(rt_profile[, "base.curve"], rt_profile[, 2], bw = bw, eliminate = component_eliminate, BIC_factor = BIC_factor, aver_diff = aver_diff)$param
+  # check for NA values in the peak shape parameters
+  if (sum(is.na(rt_peak_shape)) > 0) {
+    return(NULL)
+  }
+
   if (nrow(rt_peak_shape) == 1) {
     rt_peak_shape <- c(rt_peak_shape[1, 1:2], rt_peak_shape[1, 2], rt_peak_shape[1, 3])
   } else {
@@ -704,11 +709,17 @@ normix <- function(that.curve, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
 
     to.erase <- which(is.na(miu) | is.na(sigma) | sigma == 0 | is.na(sc))
     if (length(to.erase) > 0) {
-      l <- l - length(to.erase)
-      miu <- miu[-to.erase]
-      sigma <- sigma[-to.erase]
-      sc <- sc[-to.erase]
-      w <- w[-to.erase, ]
+       l <- l - length(to.erase)
+       miu <- miu[-to.erase]
+       sigma <- sigma[-to.erase]
+       sc <- sc[-to.erase]
+       w <- w[-to.erase, ]
+       # return if l is zero - all peak parameters are erased
+       if (l == 0) {
+         rec <- matrix(numeric(0), nrow = 0, ncol = 3)
+         colnames(rec) <- c("miu", "sigma", "scale")
+         return(rec)
+      }
     }
 
     direc <- 1
@@ -776,7 +787,12 @@ normix <- function(that.curve, pks, vlys, ignore = 0.1, max.iter = 50, aver_diff
         miu <- miu[-to.erase]
         sigma <- sigma[-to.erase]
         sc <- sc[-to.erase]
-        w <- w[-to.erase, ]
+        w <- w[-to.erase,]
+        if (l == 0) {
+          rec <- matrix(numeric(0), nrow = 0, ncol = 3)
+          colnames(rec) <- c("miu", "sigma", "scale")
+          return(rec)
+        }
         diff <- 1000
       }
     }
@@ -833,7 +849,12 @@ normix.bic <- function(x, y, do.plot = FALSE, bw = c(15, 30, 60), eliminate = .0
     if (length(pks) != last.num.pks) {
       last.num.pks <- length(pks)
       aaa <- normix(cbind(x, y), pks = pks, vlys = vlys, ignore = eliminate, max.iter = max.iter, aver_diff = aver_diff)
-
+      # all the peaks were removed, no parameters to record
+      if (nrow(aaa) == 0) {
+        bic.rec[bw.n] <- Inf  # no valid model, set BIC to Inf
+        results[[bw.n]] <- NA  # no valid model, set params to NA
+        next
+      }
       total.fit <- x * 0
       for (i in 1:nrow(aaa))
       {
@@ -953,10 +974,11 @@ prof.to.features <- function(profile,
         rt_peak_shape <- bigauss.mix(rt_profile, sigma_ratio_lim = sigma_ratio_lim, bw = bw, moment_power = moment_power, peak_estim_method = peak_estim_method, eliminate = component_eliminate, BIC_factor = BIC_factor)$param[, c(1, 2, 3, 5)]
       }
 
-      if (is.null(nrow(rt_peak_shape))) {
+      if (is.null(nrow(rt_peak_shape))) {  
         peak_parameters <- rbind(peak_parameters, c(median(feature_group[, "mz"]), rt_peak_shape))
-      } else {
-        for (m in 1:nrow(rt_peak_shape))
+      }
+      else {
+        for (m in 1:nrow(rt_peak_shape))  # multiple peaks
         {
           rt_diff <- abs(feature_group[, "rt"] - rt_peak_shape[m, 1])
           peak_parameters <- rbind(peak_parameters, c(mean(feature_group[which(rt_diff == min(rt_diff)), 1]), rt_peak_shape[m, ]))
