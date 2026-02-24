@@ -2,62 +2,6 @@
 NULL
 #> NULL
 
-#' Compute matches between mz array and specific mass value with a tolerance.
-#' @param sample_mz The mz array for which to compute the matching.
-#' @param known_mz The mz value with which to match.
-#' @param match_tol_ppm Matching tolerance in ppm.
-#' @return Indicies of m/z values within the tolerance of any known m/z.
-#' @export
-#' @examples
-#' find_mz_match(
-#'  sample_mz = c(10, 20, 21),
-#'  known_mz = 20
-#' )
-find_mz_match <- function(sample_mz, known_mz, match_tol_ppm = 5) {
-  matched_mz_idx <- rep(0, length(sample_mz))
-  match_tol_ppm <- match_tol_ppm / 1e6
-  
-  for (i in seq_along(sample_mz)) {
-    rel_diff <- abs((sample_mz[i] - known_mz) / sample_mz[i])
-    if (min(rel_diff) < match_tol_ppm) {
-      matched_mz_idx[i] <- 1
-    }
-  }
-  return(which(matched_mz_idx == 1))
-}
-
-
-find_mz_match_v1 <- function(sample_table, known_table, match_tol_ppm = 5) {
-  
-  match_tol_ppm <- match_tol_ppm / 1e6
-  matched <- sample_table |> dplyr::rowwise() |> 
-             dplyr::mutate(match = min(abs(mz - known_table[['m.z']])/mz) < match_tol_ppm) |>
-             ungroup()
-
-  return(which(matched[['match']]))
-}
-
-#' Internal function: Find similar peaks based on their distance and specified threshold.
-#' @param first_table_pars Table in where we look for similar peaks.
-#' @param second_table_par Peak for which we calculate similarity (distance).
-#' @param threshold Limit for which the peaks are still considered similar.
-#' @return Indicies of m/z values within the tolerance of any known m/z.
-#' @export
-#' @examples
-#' find_mz_match(
-#'  sample_mz = c(10, 20, 21),
-#'  known_mz = 20
-#' )
-
-find_close_peaks <- function(first_table, second_table, col1, col2, threshold, known_peaks){
-  
-  new_peaks <- c()
-  for (i in seq_along(known_peaks)) {
-      distance <- abs(first_table[[col1]] - second_table[[known_peaks[i], col2]])  # finds indices of similar peaks in our table using the selected known_table values
-      new_peaks <- unique(c(new_peaks, which(distance < threshold)))
-    }
-  return(new_peaks)
-}
 
 #' Match peaks from sample table to already known peaks via similar m/z and rt.
 #' @param aligned A list object with three tibble tables: metadata, intensity, and rt.
@@ -70,91 +14,7 @@ find_close_peaks <- function(first_table, second_table, col1, col2, threshold, k
 #'  the tolerance level based on the data.
 #' @return n x 2 matrix containing sample features-known features pairs.
 #' @export
-# match_peaks <- function(aligned,
-#   known_table,
-#   match_tol_ppm,
-#   mz_tol_relative,
-#   rt_tol_relative) {
 
-#   if (is.na(match_tol_ppm)) {
-#     match_tol_ppm <- mz_tol_relative * 1e+06
-#   }
-
-#   mass_matched_pos <- find_mz_match(aligned$metadata[['mz']],
-#       known_table[['m.z']],
-#       match_tol_ppm
-#   )
-            
-#   known_assigned <- rep(0, nrow(known_table))
-#   new_assigned <- rep(0, nrow(aligned$metadata))
-#   pairing <- matrix(0, nrow = 0, ncol = 2)
-
-#   for (i in mass_matched_pos) {
-#     if (new_assigned[i] != 0) {
-#       next
-#     }
-#     # find all potentially related known/newly found peaks
-#     prev_sel_new <- i
-#     threshold <- aligned$metadata[[i, 'mz']] * mz_tol_relative
-
-#     # returns indices of peaks in known_table close to selected peak (i) 
-#     sel_known <- which(abs(known_table[['m.z']] - aligned$metadata[[i, 'mz']]) < threshold)
-#     sel_new <- c()
-#     for (m in seq_along(sel_known)) {
-#       # finds indices of similar peaks in our table using the selected known_table values
-#       distance <- abs(aligned$metadata[['mz']] - known_table[[sel_known[m], 'm.z']])  
-#       sel_new <- unique(c(sel_new, which(distance < threshold)))
-#     }
-
-#     # if we find more than one similar peak we again look for close peaks
-#     while (length(sel_new) > length(prev_sel_new)) { 
-#       prev_sel_new <- sel_new   # newly found similar peaks
-
-#       sel_known <- NULL
-#       for (m in seq_along(sel_new)) {
-#         distance <- abs(known_table[['m.z']] - aligned$metadata[[sel_new[m], 'mz']])
-#         sel_known <- unique(c(sel_known, which(distance < threshold)))
-#       }
-
-#       sel_new <- NULL
-#       for (m in seq_along(sel_known)) {
-#         distance <- abs(aligned$metadata[['mz']] - known_table[[sel_known[m], 'm.z']])
-#         sel_new <- unique(c(sel_new, which(distance < threshold)))
-#       }
-#     }
-
-#     time_matched <- mass_matched <- matrix(
-#       data = 0,
-#       nrow = length(sel_known),
-#       ncol = length(sel_new))
-
-#     for (k in seq_along(sel_known)) {
-#       time_matched[k,] <- abs(aligned$metadata$rt[sel_new] - known_table[[sel_known[k], 'RT_mean']])
-#       mass_matched[k,] <- abs(aligned$metadata$mz[sel_new] - known_table[[sel_known[k], 'm.z']])      #ulozime iba distance
-#     }
-
-#     mass_matched <- mass_matched/median(known_table[sel_known, 'm.z'])
-#     time_matched[mass_matched <= match_tol_ppm * 1e-06] <- 1e+10
-
-#     time_matched[is.na(time_matched)] <- rt_tol_relative / 2            
-#     both_matched <- find.match(time_matched, rt_tol_relative / 2)
-
-#     for (m in seq_along(sel_new)) {
-#       k <- which(both_matched[, m] == 1)
-
-#       if (length(k) == 1 && known_assigned[sel_known[k]] == 0) {
-#         new_assigned[sel_new[m]] <- 1
-#         known_assigned[sel_known[k]] <- 1
-#         pairing <- rbind(pairing, c(sel_new[m], sel_known[k]))
-#       }
-#     }
-#   }
-#   colnames(pairing) <- c('new', 'known')
-#   return(pairing)
-# }
-
-
-# Replace current match_peaks since it is unecessarily complicated
 match_peaks <- function(
   aligned,
   known_table,
@@ -166,21 +26,26 @@ match_peaks <- function(
     match_tol_ppm <- mz_tol_relative
   }
 
- 
+ # Use distances to find mz matches in the known table, then use mz indices to match rt values, if rt NA, just return mz matches
   match_data <- aligned$metadata |> dplyr::rowwise() |> 
-             dplyr::mutate( 
-              match_mz_known = list(which(abs(known_table[['m.z']] - mz) < mz*mz_tol_relative)),
-              match_rt_known = list(which(abs(known_table[['RT_mean']] - rt) < rt*rt_tol_relative))) |>
-              ungroup()
+             dplyr::mutate(match_mz_known = list(which(abs(known_table[['m.z']] - mz) < mz*mz_tol_relative))) |>
+             dplyr::slice(which(length(match_mz_known) != 0)) |>
+             dplyr::mutate(match_rt_known = list(which(abs(known_table[['RT_mean']] - rt) < rt*rt_tol_relative))) |>
+             ungroup()
           
   matched <- match_data |> 
             dplyr::select(id, match_mz_known, match_rt_known) |>
-            dplyr::filter(lengths(match_mz_known) > 0) 
-
-  # Just for now to see how the rest of the code goes, not sure what to do with more values in mz_match, not sure what to do if mz and rt have mismatch           
-  pairing <- matched |> dplyr::rowwise() |>
+            dplyr::filter(length(unlist(match_rt_known)) > 0 | length(unlist(match_mz_known)) > 0 ) 
+# What to do if more indices match?
+  if (length(unlist(matched$match_rt_known)) == 0) {
+    pairing <- matched |> dplyr::rowwise() |>
              dplyr::mutate(new = id, known = min(unlist(match_mz_known))) |>
              ungroup()
+  } else {
+    pairing <- matched |> dplyr::rowwise() |>
+             dplyr::mutate(new = id, known = min(unlist(match_rt_known))) |>
+             ungroup()
+  }
 
   return(as.data.frame(pairing))
 }
@@ -295,7 +160,8 @@ augment_known_table <- function(
 ) {
   pairing <- match_peaks(aligned, known_table, match_tol_ppm, mz_tol_relative, rt_tol_relative)
 
-  for (i in seq_len(nrow(pairing))) {   # if new features found in our data (by match_peaks), update the known table 
+  # Update existing indices in the known table 
+  for (i in seq_len(nrow(pairing))) {  
     known_table[pairing[i, 'known'], ] <- peak_characterize(
       existing_row = known_table[pairing[i, 'known'], ],
       metadata_row = aligned$metadata[pairing[i, 'new'], ],
@@ -306,15 +172,18 @@ augment_known_table <- function(
   newly_found_ftrs <- which(!(seq_len(nrow(aligned$metadata)) %in% pairing[, 'new']))
   num_exp_found <- apply(aligned$intensity != 0, 1, sum)
 
+  empty_row <- dplyr::slice(known_table, 1)      #create sample row to preserve colnames and types for later compatibility in bind_rows
+  # Adding new features to the known table
   for (i in newly_found_ftrs) {
     if (num_exp_found[i] >= new_feature_min_count) {
-      row <- peak_characterize(     #here we introduce a lot of NA values. Why?
-        existing_row = NA,
+      row <- peak_characterize(     #here we introduce a lot of NA values. Why? ---> incompatible tibbles row and known_table
+        existing_row = empty_row,
         metadata_row = aligned$metadata[i, ],
         intensity_row = aligned$intensity[i, ],
-        rt_row = aligned$rt[i, ])
+        rt_row = aligned$rt[i, ],
+        new = TRUE)
       known_table <- dplyr::bind_rows(known_table, row)
-      pairing <- rbind(pairing, c(i, nrow(known_table)))
+      pairing <- rbind(pairing, c(i, nrow(known_table)))      #influenced by structure of pairing data.frame from match_peaks() function, needs to be fixed either here or in match_peaks
     }
   }
 
