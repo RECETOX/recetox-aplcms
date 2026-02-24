@@ -1,3 +1,11 @@
+update_expected <- function(actual, expected_files, folder, pattern) {
+  testdata <- file.path("..", "testdata")
+
+  for (i in seq_along(expected_files)) {
+    arrow::write_parquet(actual[[i]], file.path(testdata, folder, paste0(expected_files[i], pattern)))
+  }
+}
+
 patrick::with_parameters_test_that(
   "extract single feature works",
   {

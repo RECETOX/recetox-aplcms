@@ -1,4 +1,8 @@
 patrick::with_parameters_test_that("basic hybrid test", {
+  if (.test_name == 'mbr') {
+      skip("Currently failing - need to investigate.")
+  }
+
   if(ci_skip == TRUE) skip_on_ci()
 
   if (full_testdata) {
@@ -21,7 +25,7 @@ patrick::with_parameters_test_that("basic hybrid test", {
     known_table,
     mz_tol_relative = NA,
     rt_tol_relative = NA,
-    cluster = get_num_workers())
+    cluster = 4)
   actual <- as_tibble(result$recovered_feature_sample_table)
   keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
 
@@ -52,19 +56,19 @@ patrick::with_parameters_test_that("basic hybrid test", {
 },
 patrick::cases(
   # Ignore for now, too simple for the calculation
-  # mbr = list(
-  #   files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml"),
-  #   ci_skip = TRUE,
-  #   full_testdata = FALSE
-  # ),
+  mbr = list(
+    files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml"),
+    ci_skip = TRUE,
+    full_testdata = FALSE
+  ),
   RCX_shortened = list(
     files = c("RCX_06_shortened.mzML", "RCX_07_shortened.mzML", "RCX_08_shortened.mzML"),
     ci_skip = FALSE,
-    full_testdata = TRUE
+    full_testdata = FALSE
   ),
   qc_no_dil_milliq = list(
     files = c("8_qc_no_dil_milliq.mzml", "21_qc_no_dil_milliq.mzml", "29_qc_no_dil_milliq.mzml"),
     ci_skip = TRUE,
-    full_testdata = FALSE
+    full_testdata = TRUE
   )
 ))

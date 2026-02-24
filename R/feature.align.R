@@ -134,12 +134,12 @@ create_features_from_cluster <- function(features,
   # split according to mz values
   turns_mz <- find_optima(features$mz, bandwidth = mz_tol_relative * median(features$mz))
   for (i in seq_along(turns_mz$peaks)) {
-    sample_grouped_mz <- filter_based_on_density(features, turns_mz, 1, i)
+    sample_grouped_mz <- filter_based_on_density(features, turns_mz, "mz", i)
     if (validate_contents(sample_grouped_mz, min_occurrence)) {
       # split according to rt values
       turns_rt <- find_optima(sample_grouped_mz$rt, bandwidth = rt_tol_relative / 1.414)
       for (ii in seq_along(turns_rt$peaks)) {
-        sample_grouped_rt <- filter_based_on_density(sample_grouped_mz, turns_rt, 2, ii)
+        sample_grouped_rt <- filter_based_on_density(sample_grouped_mz, turns_rt, "rt", ii)
 
         # create output rows if valid
         if (validate_contents(sample_grouped_rt, min_occurrence)) {
@@ -221,7 +221,7 @@ create_aligned_feature_table <- function(features_table,
   # retention time alignment
   aligned_features <- foreach::foreach(
     i = seq_along(sel.labels), .combine = "comb", .multicombine = TRUE
-  ) %do% {
+  ) %dopar% {
     rows <- create_features_from_cluster(
       dplyr::filter(features_table, features_table$cluster == sel.labels[i]),
       mz_tol_relative,

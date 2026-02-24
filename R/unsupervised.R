@@ -285,6 +285,8 @@ unsupervised <- function(
     int_crosstab = recovered_aligned$intensity
   )
 
+  doParallel::stopImplicitCluster()
+  
   list(
     extracted_features = recovered$extracted_features,
     corrected_features = recovered$adjusted_features,

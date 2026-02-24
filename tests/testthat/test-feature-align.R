@@ -29,7 +29,7 @@ patrick::with_parameters_test_that(
         res$mz_tol_relative,
         cluster = get_num_workers()
     )
-  
+ 
     aligned_expected <- load_aligned_features(
       file.path(testdata, "aligned", "metadata_table.parquet"),
       file.path(testdata, "aligned", "intensity_table.parquet"),
