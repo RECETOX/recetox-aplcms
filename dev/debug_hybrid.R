@@ -22,12 +22,9 @@ test_files <- sapply(files, function(x) {
 })
 
 # Load known table 
-known_table_path <- file.path(test_path, "hybrid", "known_table.parquet")
-known_table <- if (file.exists(known_table_path)) {
-  known_table_path
-} else {
-  stop("Known_table file cannot be found!")
-}
+known_table <- arrow::read_parquet(
+    file.path(test_path, "hybrid", "known_table.parquet")
+)
 
 # Set cluster size (adjust for your machine)
 num_workers <- min(parallel::detectCores() - 1, 3)
@@ -44,8 +41,11 @@ result <- hybrid(
   cluster = num_workers
 )
 
+end_file_path <- file.path("./hybrid_run_results.csv")
+write.csv(as_tibble(result$recovered_feature_sample_table), end_file_path)
+
 message("Completed successfully!")
-message("Final features: ", as_tibble(result$recovered_feature_sample_table))
+message("Final features saved to: ", end_file_path)
 
 # # Optionally, compare with expected results
 # expected_path <- file.path(test_path, "final_ftrs.Rda")
@@ -56,4 +56,4 @@ message("Final features: ", as_tibble(result$recovered_feature_sample_table))
 # }
 
 # Return result for inspection
-result
+# result

@@ -30,13 +30,10 @@ metadata <- read.table(
   strip.white = TRUE
 )
 
-# Optional: load known table if needed
-known_table_path <- file.path(test_path, "hybrid", "known_table.parquet")
-known_table <- if (file.exists(known_table_path)) {
-  known_table_path
-} else {
-  NA
-}
+# Load known table 
+known_table <- arrow::read_parquet(
+    file.path(test_path, "hybrid", "known_table.parquet")
+)
 
 # Set cluster size (adjust for your machine)
 num_workers <- min(parallel::detectCores() - 1, 3)
@@ -50,12 +47,16 @@ result <- two.step.hybrid(
   metadata = metadata,
   work_dir = test_path,
   known.table = known_table,
-  cluster = 1
+  cluster = num_workers
   # do.plot = TRUE      # not working for now. Added 'draw_plot' to registered function names, but it seems that       
 )
 
+
+end_file_path <- file.path("./two_step_hybrid_run_results.csv")
+write.csv(as_tibble(result$final_features), end_file_path)
+
 message("Completed successfully!")
-message("Final features: ", nrow(result$final_features))
+message("Final features: ", end_file_path)
 
 # # Optionally, compare with expected results
 # expected_path <- file.path(test_path, "final_ftrs.Rda")
@@ -66,4 +67,4 @@ message("Final features: ", nrow(result$final_features))
 # }
 
 # Return result for inspection
-result
+# result
