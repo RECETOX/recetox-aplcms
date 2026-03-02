@@ -1,5 +1,4 @@
 
-#' @description
 #' Sort tibble based on sample_names
 #' @export
 sort_data <- function(sample_names, feature_tables) {
@@ -141,7 +140,7 @@ compute_clusters <- function(feature_tables,
 
 #' Compute clusters using simple grouping based on numeric thresholds.
 #' 
-#' @describtion
+#' @description
 #' Features are first grouped in mz dimension based on the tolerance.
 #' First, the absolute tolerance is computed for each feature, then a new group is started
 #' once the difference between consecutive features is above this threshold.
@@ -175,7 +174,7 @@ compute_clusters_simple <- function(feature_tables, sample_names, mz_tol_ppm, rt
 
 #' Compute clusters using simple grouping based on numeric thresholds.
 #' 
-#' @describtion
+#' @description
 #' Features are first grouped in mz dimension based on the tolerance.
 #' First, the absolute tolerance is computed for each feature, then a new group is started
 #' once the difference between consecutive features is above this threshold.

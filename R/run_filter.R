@@ -39,9 +39,9 @@ predict_smoothed_rt <- function(min_run, times) {
 #' @param min_run Run filter parameter. The minimum length of elution time for a series of signals grouped by m/z to be considered a peak.
 #' @param min_pres Run filter parameter. The minimum proportion of presence in the time period for a series of signals grouped
 #'  by m/z to be considered a peak.
-#' @param timeline.
-#' @param this_times.
-#' @param times. Retention times vector.
+#' @param timeline The vector of zeros with the same length as the number of retention time points.
+#' @param this_times The vector of retention time points for the current profile.
+#' @param times Retention times vector.
 #' @return to_keep.
 #' @export
 label_val_to_keep <- function(min_run, timeline, min_pres, this_times, times) {
