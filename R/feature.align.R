@@ -17,7 +17,13 @@ create_metadata <- function(sample_grouped, sample_names) {
     rtmean = mean(rt),
     rtmin = min(rt),
     rtmax = max(rt),
-    npeaks = n()
+    npeaks = n(),
+    sd1_mean = mean(sd1),
+    sd1_min = min(sd1),
+    sd1_max = max(sd1),
+    sd2_mean = mean(sd2),
+    sd2_min = min(sd2),
+    sd2_max = max(sd2)
   ) %>% rename(mz = "mzmean", rt = "rtmean")
 
   metadata_row <- dplyr::bind_cols(metadata_row, as.list(sample_presence))
@@ -163,7 +169,7 @@ comb <- function(x, ...) {
 clean_data_matrix <- function(x, sample_names) {
   x <- x %>%
     replace(is.na(.), 0) %>%
-    dplyr::relocate(sample_names) |>
+    dplyr::relocate(all_of(sample_names)) |>
     add_feature_ids()
   return(x)
 }
@@ -209,6 +215,7 @@ create_aligned_feature_table <- function(features_table,
 
   # table with number of values per group
   groups_cardinality <- table(features_table$cluster)
+
   # count those with minimal occurrence
   sel.labels <- as.numeric(names(groups_cardinality)[groups_cardinality >= min_occurrence])
 
@@ -225,6 +232,68 @@ create_aligned_feature_table <- function(features_table,
     )
     list(metadata = rows$metadata_row, intensity = rows$intensity_row, rt = rows$rt_row)
   }
+
+  aligned_features$intensity <- clean_data_matrix(aligned_features$intensity, sample_names)
+  aligned_features$rt <- clean_data_matrix(aligned_features$rt, sample_names)
+  aligned_features$metadata <- add_feature_ids(aligned_features$metadata)
+
+  return(aligned_features)
+}
+
+#' Simple version of create_features_from_cluster for testing
+#' @param features The features table subsetted for a particular cluster.
+#' @param min_occurrence A minimal number of profiles a feature has to be present in
+#' @param sample_names A list of sample names.
+#' @return A list containing 3 tibbles: metadata, intensities and RT
+#'
+#' @export
+create_features_from_cluster_simple <- function(features,
+                                                min_occurrence,
+                                                sample_names) {
+  if (!validate_contents(features, min_occurrence)) {
+    return(NULL)
+  }
+
+  clusters <- unique(features$cluster)
+ 
+  # reset row names
+  rownames(features) <- NULL
+
+   # create rows for this cluster
+  metadata <- create_metadata(features, sample_names) %>% add_column( id = clusters, .before = 1)
+  intensity <- create_intensity_row(features) %>% add_column(id = clusters, .before = 1)
+  rt <- create_rt_row(features) %>% add_column(id = clusters, .before = 1)
+
+  # return output
+  return(list(metadata_row = metadata, intensity_row = intensity, rt_row = rt))
+}
+
+#' Simple version of create_aligned_feature_table for testing, grouping by cluster IDs
+#' @param features_table A list object. Each component is a matrix which is the output from compute_clusters().
+#' @param min_occurrence  A feature has to show up in at least this number of profiles to be included in the final result.
+#' @param sample_names list List of sample names.
+#' @return A list of 3 tibbles containing aligned metadata, intensities an RTs.
+#' 
+#' @export
+create_aligned_feature_table_simple <- function(features_table,
+                                         min_occurrence,
+                                         sample_names) {
+
+  cluster_list <- features_table %>%
+    dplyr::group_by(cluster) %>%
+    dplyr::group_split() 
+
+  processed_clusters <- lapply(cluster_list, function(x) {
+    create_features_from_cluster_simple(features = x, 
+                                        min_occurrence = min_occurrence, 
+                                        sample_names = sample_names)
+  })
+
+  aligned_features <- list(
+    metadata = dplyr::bind_rows(lapply(processed_clusters, `[[`, "metadata_row")),
+    intensity = dplyr::bind_rows(lapply(processed_clusters, `[[`, "intensity_row")),
+    rt = dplyr::bind_rows(lapply(processed_clusters, `[[`, "rt_row"))
+  )
 
   aligned_features$intensity <- clean_data_matrix(aligned_features$intensity, sample_names)
   aligned_features$rt <- clean_data_matrix(aligned_features$rt, sample_names)

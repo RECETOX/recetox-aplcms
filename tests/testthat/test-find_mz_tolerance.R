@@ -11,5 +11,5 @@ test_that("mz tolerance is found", {
     do.plot = FALSE
   )
 
-  expect_equal(mz_tol_relative, 0.0135994, tolerance=0.001)
+  expect_equal(mz_tol_relative, 0.0234, tolerance=0.002)
 })

@@ -30,6 +30,7 @@ compute_breaks_3 <- function(values, tolerance = NA) {
 #' @param max.bins the maximum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too many observations are present.
 #' @param do.plot Indicates whether plot should be drawn.
 #' @return rt_tol_relative the elution time tolerance.
+#' @export
 compute_rt_tol_relative <- function(breaks,
                                     max.num.segments,
                                     aver.bin.size,
@@ -94,9 +95,9 @@ compute_rt_tol_relative <- function(breaks,
     # cumulative sum - where density value is greater than estimated density value
     # cutoff is selected where the density of the empirical distribution is >1.5 times the density of the distribution
     cumulative <- cumsum(density_values > 1.5 * estimated_density_values)
-    cumulative_indices <- seq_along(cumulative)
+
     # find last index where density value is greater than estimated density value
-    selected <- min(which(cumulative < cumulative_indices)) - 1
+    selected <- match(1, cumulative)
     # corresponding coordinate is used as rt tolerance
     rt_tol_relative <- points[selected]
 
@@ -131,6 +132,8 @@ compute_rt_tol_relative <- function(breaks,
 #' @param do.plot Indicates whether plot should be drawn.
 #' @return A matrix with six columns. Every row corresponds to a peak in one of the spectrum. The columns are: m/z, elution time, spread, signal strength,
 #'  spectrum label, and peak group label. The rows are ordered by the median m/z of each peak group, and with each peak group the rows are ordered
+#'  by the elution time.
+#' @export
 find.tol.time <- function(features,
                           number_of_samples,
                           mz_tol_relative,

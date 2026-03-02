@@ -2,7 +2,20 @@
 NULL
 #> NULL
 
+#' Internal function: Convert feature tables to crosstab format.
+#'
+#' @description
+#' Combines metadata and data tables into a single crosstab format with feature metadata
+#' columns followed by sample data columns.
+#'
+#' @param sample_names A character vector of sample names to use as column headers.
+#' @param metadata A tibble containing feature metadata (id, mz, rt, mzmin, mzmax).
+#' @param data A tibble containing sample data to be joined with metadata.
+#'
+#' @return A tibble in crosstab format with metadata columns followed by sample columns.
+#'
 #' @importFrom dplyr select inner_join
+#' @export
 as_feature_crosstab <- function(sample_names, metadata, data) {
   metadata_cols <- c('id', 'mz', 'rt', 'mzmin', 'mzmax')
   data <- select(metadata, metadata_cols) |>
@@ -12,6 +25,31 @@ as_feature_crosstab <- function(sample_names, metadata, data) {
   return(data)
 }
 
+#' Internal function: Recover weaker signals across multiple samples.
+#'
+#' @description
+#' Performs weak signal recovery for features across multiple samples using the aligned
+#' feature table as a reference. This function parallelizes the recovery process across
+#' samples using a compute cluster.
+#'
+#' @param cluster A parallel cluster object for distributed computation.
+#' @param filenames A character vector of file paths to the raw data files.
+#' @param extracted_features A list of extracted feature tables, one per sample.
+#' @param corrected_features A list of time-corrected feature tables, one per sample.
+#' @param aligned_rt_crosstab A crosstab table of aligned retention times.
+#' @param aligned_int_crosstab A crosstab table of aligned intensities.
+#' @param original_mz_tolerance The original m/z tolerance used in feature extraction.
+#' @param aligned_mz_tolerance The m/z tolerance used in alignment.
+#' @param aligned_rt_tolerance The retention time tolerance used in alignment.
+#' @param recover_mz_range The m/z range around features to search for weak signals.
+#' @param recover_rt_range The retention time range around features to search for weak signals.
+#' @param use_observed_range Logical; whether to use observed ranges for recovery.
+#' @param min_bandwidth Minimum bandwidth for signal smoothing.
+#' @param max_bandwidth Maximum bandwidth for signal smoothing.
+#' @param recover_min_count Minimum number of data points for a recovered signal.
+#'
+#' @return A list containing extracted_features, corrected_features, rt_crosstab, and int_crosstab.
+#' @export
 recover_weaker_signals <- function(
   cluster,
   filenames,
@@ -68,6 +106,17 @@ recover_weaker_signals <- function(
   )
 }
 
+#' Internal function: Pivot feature values from long to wide format.
+#'
+#' @description
+#' Converts a long-format feature table to wide format by pivoting sample-specific
+#' values (RT or intensity) into separate columns for each sample.
+#'
+#' @param feature_table A tibble in long format with columns: mz, rt, sample, and sample-specific values.
+#' @param variable A character string specifying which variable to pivot ("rt" or "intensity").
+#'
+#' @return A tibble in wide format with one row per feature (mz, rt) and one column per sample.
+#' @export
 pivot_feature_values <- function(feature_table, variable) {
   extended_variable <- paste0("sample_", variable)
   values <- dplyr::select(feature_table, mz, rt, sample, !!sym(extended_variable))
@@ -78,6 +127,16 @@ pivot_feature_values <- function(feature_table, variable) {
   return(values)
 }
 
+#' Internal function: Convert feature table from long to wide format.
+#'
+#' @description
+#' Transforms a long-format feature table (one row per feature-sample combination) into
+#' wide format (one row per feature with sample data in columns).
+#'
+#' @param feature_table A tibble in long format with columns: mz, rt, sample, sample_rt, sample_intensity.
+#'
+#' @return A tibble in wide format with columns: mz, rt, and sample-specific RT and intensity columns.
+#' @export
 long_to_wide_feature_table <- function(feature_table) {
   sample_rts <- pivot_feature_values(feature_table, "rt")
   sample_intensities <- pivot_feature_values(feature_table, "intensity")
@@ -87,6 +146,17 @@ long_to_wide_feature_table <- function(feature_table) {
     dplyr::inner_join(sample_intensities, by = c("mz", "rt"))
 }
 
+#' Internal function: Convert feature table from wide to long format.
+#'
+#' @description
+#' Transforms a wide-format feature table (one row per feature with sample data in columns)
+#' into long format (one row per feature-sample combination).
+#'
+#' @param wide_table A tibble in wide format with sample-specific RT and intensity columns.
+#' @param sample_names A character vector of sample names (currently unused in implementation).
+#'
+#' @return A tibble in long format with columns: feature, mz, rt, mz_min, mz_max, sample, sample_rt, sample_intensity.
+#' @export
 wide_to_long_feature_table <- function(wide_table, sample_names) {
   wide_table <- tibble::rowid_to_column(wide_table, "feature")
   
@@ -108,11 +178,22 @@ wide_to_long_feature_table <- function(wide_table, sample_names) {
 #' @param dataframe A dataframe from which to extract column names.
 #' @param pattern A character string containing the pattern to match in the column names.
 #' @return A character vector of column names that match the specified pattern.
+#' @export
 extract_pattern_colnames <- function(dataframe, pattern) {
   dataframe <- dplyr::select(dataframe, contains(pattern))
   return(colnames(dataframe))
 }
 
+#' Internal function: Convert aligned feature tables to wide format.
+#'
+#' @description
+#' Transforms aligned feature tables (RT and intensity crosstabs) into a single wide-format
+#' table suitable for downstream analysis.
+#'
+#' @param aligned A list containing rt_crosstab and int_crosstab elements.
+#'
+#' @return A tibble in wide format with feature metadata and sample-specific RT and intensity values.
+#' @export
 as_wide_aligned_table <- function(aligned) {
   mz_scale_table <- aligned$rt_crosstab[, c("mz", "rt", "mz_min", "mz_max")]
   aligned <- as_feature_sample_table(
@@ -124,7 +205,17 @@ as_wide_aligned_table <- function(aligned) {
   return(aligned)
 }
 
-
+#' Internal function: Merge known feature tables from multiple batches.
+#'
+#' @description
+#' Combines the updated known feature tables from multiple batch processing results
+#' into a single comprehensive known feature table.
+#'
+#' @param batchwise A list of batch processing results, each containing an updated.known.table.
+#' @param batches_idx A vector of batch indices to process.
+#'
+#' @return A tibble containing the merged known feature table with standardized columns.
+#' @export
 merge_known_tables <- function(batchwise, batches_idx) {
   colnames <- c("chemical_formula", "HMDB_ID", "KEGG_compound_ID", "mass", "ion.type", "m.z",
               "Number_profiles_processed", "Percent_found", "mz_min", "mz_max", 
@@ -159,6 +250,21 @@ merge_known_tables <- function(batchwise, batches_idx) {
   return(known_table)
 }
 
+#' Internal function: Filter features based on presence criteria.
+#'
+#' @description
+#' Filters features based on their presence across samples within batches and across batches.
+#' A feature must be present in a minimum proportion of samples within batches and in a
+#' minimum proportion of batches to be retained.
+#'
+#' @param feature_table A tibble containing feature data with intensity columns.
+#' @param metadata A tibble containing sample metadata with batch information.
+#' @param batches_idx A vector of batch indices.
+#' @param within_batch_threshold The minimum proportion of samples within a batch where a feature must be present.
+#' @param across_batch_threshold The minimum proportion of batches where a feature must meet the within-batch threshold.
+#'
+#' @return A filtered feature table containing only features meeting the presence criteria.
+#' @export
 filter_features_by_presence <- function(feature_table,
                                         metadata,
                                         batches_idx,
@@ -181,6 +287,17 @@ filter_features_by_presence <- function(feature_table,
   return(feature_table[above_threshold, ])
 }
 
+#' Internal function: Readjust retention times to match between-batch alignment.
+#'
+#' @description
+#' Adjusts the retention times in within-batch corrected features to match the
+#' retention times from between-batch alignment, ensuring consistency across batches.
+#'
+#' @param within_batch A list containing recovered_feature_sample_table and corrected_features.
+#' @param between_batch A list containing the rt (retention time) table from between-batch alignment.
+#'
+#' @return A list of corrected feature tables with adjusted retention times.
+#' @export
 readjust_times <- function(within_batch, between_batch) {
   within_batch_recovered <- long_to_wide_feature_table(
     within_batch$recovered_feature_sample_table
@@ -199,6 +316,16 @@ readjust_times <- function(within_batch, between_batch) {
   return(within_batch$corrected_features)
 }
 
+#' Internal function: Compute median intensities for features.
+#'
+#' @description
+#' Calculates the median intensity for each feature across all samples in which it appears.
+#' The median is computed by grouping features by their m/z and retention time.
+#'
+#' @param feature_table A tibble containing feature data with a sample_intensity column.
+#'
+#' @return The feature table with an additional median_intensity column.
+#' @export
 compute_intensity_medians <- function(feature_table) {
   stopifnot("sample_intensity" %in% colnames(feature_table))
   feature_table <- dplyr::group_by(feature_table, mz, rt) %>%
@@ -207,6 +334,17 @@ compute_intensity_medians <- function(feature_table) {
   return(feature_table)
 }
 
+#' Internal function: Bind batch labels to filenames.
+#'
+#' @description
+#' Combines filename information with metadata by matching sample names, adding batch
+#' labels to each filename for batch-wise processing.
+#'
+#' @param filenames A character vector of file paths.
+#' @param metadata A tibble containing sample_name and batch columns.
+#'
+#' @return A tibble with filename and batch columns.
+#' @export
 bind_batch_label_column <- function(filenames, metadata) {
   stopifnot(nrow(metadata) == length(filenames))
 
@@ -217,6 +355,32 @@ bind_batch_label_column <- function(filenames, metadata) {
   return(dplyr::select(filenames, -sample_name))
 }
 
+#' Internal function: Recover features across batches.
+#'
+#' @description
+#' Performs comprehensive feature recovery across multiple batches by matching features
+#' from within-batch processing to between-batch aligned features, then performing
+#' weak signal recovery for each batch.
+#'
+#' @param cluster A parallel cluster object for distributed computation.
+#' @param step_one_features A list of feature tables from initial batch processing.
+#' @param batchwise A list of batch processing results.
+#' @param filenames_batchwise A tibble containing filename and batch information.
+#' @param corrected A list of time-corrected feature tables for between-batch alignment.
+#' @param aligned A wide-format aligned feature table from between-batch alignment.
+#' @param batches_idx A vector of batch indices.
+#' @param mz.tol The m/z tolerance for feature matching.
+#' @param batch.align.mz.tol The m/z tolerance for batch alignment.
+#' @param batch.align.rt.tol The retention time tolerance for batch alignment.
+#' @param recover.mz.range The m/z range for weak signal recovery.
+#' @param recover.rt.range The retention time range for weak signal recovery.
+#' @param use.observed.range Logical; whether to use observed ranges.
+#' @param min.bw Minimum bandwidth for smoothing.
+#' @param max.bw Maximum bandwidth for smoothing.
+#' @param recover.min.count Minimum count for recovered signals.
+#'
+#' @return A tibble containing recovered features across all batches in wide format.
+#' @export
 feature_recovery <- function(cluster,
                              step_one_features,
                              batchwise,
@@ -323,6 +487,18 @@ feature_recovery <- function(cluster,
   return(recovered)
 }
 
+#' Internal function: Adapt semi-supervised output to hybrid format.
+#'
+#' @description
+#' Converts the output from semi-supervised feature detection (semi.sup function) to
+#' the format expected by the hybrid workflow. This includes renaming columns, converting
+#' between wide and long formats, and restructuring the feature tables.
+#'
+#' @param batchwise A list of batch processing results from semi.sup.
+#' @param batches_idx A vector of batch indices.
+#'
+#' @return The modified batchwise list with reformatted feature tables suitable for hybrid processing.
+#' @export
 semisup_to_hybrid_adapter <- function(batchwise, batches_idx) {
   for (batch in batches_idx) {
     final.ftrs <- as_tibble(batchwise[[batch]]$final.ftrs)

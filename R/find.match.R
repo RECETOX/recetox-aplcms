@@ -1,3 +1,8 @@
+#' Internal function: finding the position of the minimum value in a distance matrix.
+#' Given a small matrix of distances, find the position of the minimum value.
+#' @param distances A matrix of distances.
+#' @return A vector of length 2 indicating the row and column of the minimum value.
+#' @export
 find_min_position <- function(distances) {
     position <- which.min(distances)[1]
     position_x <- position %% nrow(distances)
@@ -13,6 +18,7 @@ find_min_position <- function(distances) {
 #' @param distances A matrix of distances.
 #' @param max_distance A distance larger than which cannot be accepted as pairs.
 #' @return A binary matrix the same size as the input matrix, with matched position taking value 1, and all other positions taking value 0.
+#' @export
 find.match <- function(distances, max_distance) {
     matches <- matrix(0, nrow(distances), ncol(distances))
 

@@ -1,7 +1,7 @@
 Package: recetox.aplcms
 Title: Adaptive processing of LC-MS data
-Version: 0.14.1
-Date: 2025-08-14
+Version: 0.14.2
+Date: 2025-12-19
 Authors@R: c(
     person("Tianwei", "Yu", email = "tianwei.Yu@emory.edu", role = "aut"),
     person("Helge", family="Hecht", email = "helge.hecht@recetox.muni.cz", role = "cre"))
@@ -17,4 +17,4 @@ NeedsCompilation: no
 Suggests: 
     dataCompareR, testthat (>= 3.0.0), microbenchmark, rawrr, purrr
 Config/testthat/edition: 3
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
