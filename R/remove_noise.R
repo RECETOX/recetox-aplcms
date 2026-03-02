@@ -89,7 +89,7 @@ remove_noise <- function(filename,
   newprof <- cbind(
     raw.prof$features$mz,
     raw.prof$features$rt,
-    raw.prof$features$intensities,
+    raw.prof$features$intensity,
     raw.prof$features$grps
   )
 
