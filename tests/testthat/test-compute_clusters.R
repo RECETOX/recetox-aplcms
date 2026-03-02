@@ -93,9 +93,6 @@ patrick::with_parameters_test_that(
       sample_names = files
     )
 
-    # for(i in 1:3) {
-    #   arrow::write_parquet(actual$feature_tables[[i]], file.path(testdata, "clusters", paste0(files[i], "_", input ,"_clusters.parquet")))
-    # }
     expected <- read_parquet_files(files, "clusters", paste0("_", input, "_clusters.parquet"))
 
 
