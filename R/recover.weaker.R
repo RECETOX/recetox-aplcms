@@ -222,7 +222,8 @@ predict_mz_break_indices <- function(features, mz_orig_tol) {
 }
 
 #' Compute range of valley indices which are in mz_tol range around aligned_feature_mass.
-#' @description
+#' @description Generate indices of valley points which are within the mz tolerance range around the aligned feature mass. If the aligned feature mass is smaller than the second valley point, the first two valley points are returned as indices.
+#' Otherwise, the function checks which valley points are within the mz tolerance range and also includes the closest valley point above and below the aligned feature mass.
 #'
 #' @param aligned_feature_mass float Mz value of the aligned feature.
 #' @param mz vector mz values of the features.
@@ -277,6 +278,7 @@ get_rt_region_indices <- function(target_time, features, rt_tol) {
 #'   \item pks - vector - The data points at which the density peaks.
 #'   \item vlys - vector - The points in the data where the density is low
 #'                         (forming a valley in the function).
+#' }
 #' @export
 get_features_in_rt_range <- function(features, times, bw) {
   time_curve <- times[between(times, min(features$rt), max(features$rt))]
@@ -323,6 +325,7 @@ count_peaks <- function(roi, times) {
 #'   \item pks - vector - The data points at which the density peaks with at least `recover_min_count` peaks between the valley points.
 #'   \item vlys - vector - The points in the data where the density is low
 #'                         (forming a valley in the function).
+#' }
 #' @export
 compute_pks_vlys_rt <- function(features, times, bandwidth, target_rt, recover_min_count) {
   roi <- get_features_in_rt_range(
@@ -356,7 +359,8 @@ compute_pks_vlys_rt <- function(features, times, bandwidth, target_rt, recover_m
 #' \itemize{
 #'   \item intensity - float - Interpolated intensity value.
 #'   \item label - float - Interpolated retention time value.
-#'   \item sigma - float - Standard deviation of retention times
+#'   \item sigma - float - Standard deviation of retention 
+#' }
 #' @export
 compute_mu_sc_std <- function(rt_profile, aver_diff) {
   x <- rt_profile$rt
@@ -378,7 +382,8 @@ compute_mu_sc_std <- function(rt_profile, aver_diff) {
 }
 
 #' Compute the rectangle around recovered features given that enough peaks are present.
-#' @description
+#' @description If there are enough peaks in the area, the function computes the interpolated retention time and intensity values using a Gaussian curve fitted to the data.
+#' If there are not enough peaks, the function computes the area under the curve using interpolation.
 #'
 #' @param mz Mz value of the feature.
 #' @param peak Peak around which to detect the new feature.

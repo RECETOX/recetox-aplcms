@@ -96,10 +96,7 @@ process_chunk <- function(spectra, start_times) {
 #'   \item rt - The vector of retention times.
 #'   \item intensities - The vector of intensity values.
 #' }
-#' @import rawrr
 #' @import tibble
-#' @import purrr
-#' @import future.apply
 #' @import dplyr
 #' @export
 load.lcms.raw <- function(filename, chunk_size = 100) {

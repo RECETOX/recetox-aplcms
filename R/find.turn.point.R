@@ -1,5 +1,4 @@
-#' @description
-#' Compute local maxima turn points. 
+#' Compute local maxima turn points.
 #' @param y The y values of a curve in x-y plane.
 #' @param ties.method specifies the method rank uses to break ties.
 #' @return boolean row with local maxima turn point.
@@ -21,8 +20,7 @@ find_local_maxima <- function(y, ties.method) {
     return(v)
 }
 
-#' @description
-#' Compute maxima and minima turn points. 
+#' Compute maxima and minima turn points.
 #' @param y The y values of a curve in x-y plane.
 #' @return boolean row with local maxima and minima turn points.
 #' @export
