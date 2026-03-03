@@ -149,7 +149,7 @@ correct_time <- function(this.feature, template_features) {
       this.comb <- compute_comb(template_features, this.feature)
       sel <- compute_sel(this.comb)
 
-      if (length(sel) < 20) {
+      if (length(sel) < 10) {
         stop("too few, aborted")
       } else {
         all.ftr.table <- compute_template_adjusted_rt(this.comb, sel, j)

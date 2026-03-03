@@ -80,7 +80,6 @@ register_functions_to_cluster <- function(cluster) {
         'find.turn.point',
         'find_local_maxima',
         'find_min_position',
-        'find_mz_match',
         'find_mz_tolerance',
         'find_optima',
         'get_custom_rt_tol',

@@ -39,11 +39,13 @@ match_peaks <- function(
 # What to do if more indices match?
   if (length(unlist(matched$match_rt_known)) == 0) {
     pairing <- matched |> dplyr::rowwise() |>
-             dplyr::mutate(new = id, known = min(unlist(match_mz_known))) |>
+             dplyr::mutate(new = id, known = min(unlist(match_mz_known)), 
+             id = NULL, match_mz_known = NULL, match_rt_known = NULL) |>
              ungroup()
   } else {
     pairing <- matched |> dplyr::rowwise() |>
-             dplyr::mutate(new = id, known = min(unlist(match_rt_known))) |>
+             dplyr::mutate(new = id, known = min(unlist(match_rt_known)), 
+             id = NULL, match_mz_known = NULL, match_rt_known = NULL) |>
              ungroup()
   }
 
@@ -186,6 +188,7 @@ augment_known_table <- function(
       pairing <- rbind(pairing, c(i, nrow(known_table)))      #influenced by structure of pairing data.frame from match_peaks() function, needs to be fixed either here or in match_peaks
     }
   }
+
 
   list(pairing = pairing, known_table = known_table)
 }
@@ -336,7 +339,7 @@ hybrid <- function(
 
 
   message("**** time correction ****")
-    corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %dopar% correct_time(
+    corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %do% correct_time(
     this.feature,
     template_features
   )
@@ -415,7 +418,7 @@ hybrid <- function(
 
 
   message("**** second time correction ****")
-  corrected <- foreach::foreach(this.feature = recovered_clusters$feature_tables) %dopar% correct_time(
+  corrected <- foreach::foreach(this.feature = recovered_clusters$feature_tables) %do% correct_time(
     this.feature,
     template_features
   )

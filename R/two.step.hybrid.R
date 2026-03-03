@@ -346,6 +346,15 @@ compute_intensity_medians <- function(feature_table) {
   return(feature_table)
 }
 
+
+compute_intensity_medians_v1 <- function(feature_table) {
+  stopifnot("sample_intensity" %in% colnames(feature_table))
+  feature_table <- dplyr::group_by(feature_table, mz, rt) %>%
+    dplyr::mutate(median_intensity = median(sample_intensity)) %>%
+    dplyr::ungroup()
+  return(feature_table)
+}
+
 #' Internal function: Bind batch labels to filenames.
 #'
 #' @description
@@ -507,6 +516,116 @@ feature_recovery <- function(cluster,
   return(recovered)
 }
 
+find_present_match <- function(sample_idx, target_intensity) {
+  in_mz_window <- dplyr::between(
+    original_metadata$mz,
+    aligned$metadata[sample_idx, "mzmin"],
+    aligned$metadata[sample_idx, "mzmax"]
+  )
+
+  idx <- which(in_mz_window & abs(original_intensities_medians - target_intensity) < 1)
+  if (length(idx) == 0) idx <- which(in_mz_window)
+  idx
+}
+
+recapture_missing <- function(sample_idx) {
+  recaptured_int <- rep(0, ncol(this_intensities))
+  recaptured_rt  <- rep(NA_real_, ncol(this_intensities))
+
+  for (j in seq_along(adjusted_time_features)) {
+    diff_mz   <- abs(adjusted_time_features[[j]][, "mz"] - aligned$metadata[sample_idx, "mz"])
+    diff_time <- abs(adjusted_time_features[[j]][, "rt"] - aligned$metadata[sample_idx, "rt"])
+    idx <- which(diff_mz < aligned$metadata[sample_idx, "mz"] * batch_align_mz_tol &
+                 diff_time <= batch_align_rt_tol)
+    if (length(idx) > 0) {
+      best <- idx[which.min(diff_time[idx])]
+      recaptured_int[j] <- as.numeric(adjusted_time_features[[j]][best, "area"])
+      recaptured_rt[j]  <- as.numeric(adjusted_time_features[[j]][best, "rt"])
+    }
+  }
+
+  list(intensity = recaptured_int, rt = recaptured_rt)
+}
+
+feature_recovery_v1 <- function(cluster,
+                             original,
+                             batchwise,
+                             filenames_batchwise,
+                             corrected,
+                             aligned,
+                             batches_idx,
+                             mz_tol,
+                             batch_align_mz_tol,
+                             batch_align_rt_tol,
+                             recover_mz_range,
+                             recover_rt_range,
+                             use_observed_range,
+                             min_bw,
+                             max_bw,
+                             recover_min_count) {
+  recovered <- list(
+    metadata = tibble(),
+    intensity = tibble(),
+    rt = tibble()
+  )
+
+  # Need to refactor this
+  for (batch_id in batches_idx)
+  {
+
+    original_intensities_medians <- apply(original[[batch_id]]$intensity, 1, median) 
+    adjusted_time_features <- readjust_times(batchwise[[batch_id]], corrected[[batch_id]])    # adjusting time between batches (already within batch adjusted)
+    this_time <- this_intensities <- matrix(0, nrow = nrow(aligned$intensity), ncol = ncol(original[[batch_id]]l$intensity))  # empty helper matrices
+    
+    for (sample_idx in seq_along(aligned$intensity)) {
+      target_intensity <- aligned$intensity[sample_idx, batch_id]
+      # Present in aligned data
+      if (target_intensity != 0) {
+        idx <- find_present_match(sample_idx, target_intensity)
+
+        if (length(idx) == 0) {
+          message("warning: batch ", batch_id, " sample ", sample_idx, " has matching issue")
+          next
+        }
+
+        this_intensities[sample_idx, ] <- colSums(original[[batch_id]]$intensity[idx, , drop = FALSE])
+        this_time[sample_idx, ] <- apply(original[[batch_id]]$rt[idx, , drop = FALSE], 2, median)
+      } 
+
+      # Recapture from individual feature tables
+      else {
+        recaptured <- recapture_missing(sample_idx)
+        this_intensities[sample_idx, ] <- recaptured$intensity
+        this_time[sample_idx, ] <- recaptured$rt
+      }
+    }
+    
+    recovered_batchwise <- recover_weaker_signals(
+      cluster = cluster,
+      filenames = filter(filenames_batchwise, batch == batch_id)$filename,
+      extracted_features = batchwise[[batch_id]]$extracted_features,
+      corrected_features = batchwise[[batch_id]]$corrected_features,
+      intensity_table = this_intensities,
+      rt_table = this_time,
+      original_mz_tolerance = mz_tol,
+      aligned_mz_tolerance = batch_align_mz_tol,
+      aligned_rt_tolerance = batch_align_rt_tol,
+      recover_mz_range = recover_mz_range,
+      recover_rt_range = recover_rt_range,
+      use_observed_range = use_observed_range,
+      min_bandwidth = min_bw,
+      max_bandwidth = max_bw,
+      recover_min_count = recover_min_count
+    )
+
+    recovered$metadata <- dplyr::full_join(recovered_batchwise$metadata)
+    recovered$intensity <- dplyr::full_join(recovered_batchwise$intensity)
+    recovered$rt <- dplyr::full_join(recovered_batchwise$rt)
+    
+  }
+  return(recovered)
+}
+1-2!-2
 #' Two step hybrid feature detection.
 #' 
 #' A two-stage hybrid feature detection and alignment procedure, for data generated in multiple batches.
@@ -664,6 +783,7 @@ two.step.hybrid <- function(filenames,
     batchwise[[batch.i]] <- features
   }
 
+  # Here we calculate intensity medians on group data, but with pseudo table we calculate it without grouping --> shouldn't we use groupinh also in pseudo table?
   step_one_features <- list()
   for (batch_id in batches_idx) {
     step_one_features[[batch_id]] <- compute_intensity_medians(
@@ -671,28 +791,34 @@ two.step.hybrid <- function(filenames,
     )
   }
 
+  # Testing new feature_recovery
+  original_features <- lapply(batchwise, function(x) x$recovered_aligned_features)
+
   cluster <- parallel::makeCluster(cluster)
   doParallel::registerDoParallel(cluster)
   register_functions_to_cluster(cluster)
 
   pseudo_features <- list()
-  
   for (batch_id in batches_idx) {
     files_batch <- dplyr::filter(filenames_batchwise, batch == batch_id)$filename
     samples_in_batch <- get_sample_name(files_batch)
-    #rewrite so that:
-    ## medians of intensities from the recovered_aligned_features$intensity are calculated
-    ## join new median intensities with recovered_aligned_features$meatadata on feature id
-    ## this is still done per batch
-    batchwise_recovered_aligned <- batchwise[[batch_id]]$recovered_aligned_features 
-    batchwise_intensities <- batchwise_recovered_aligned$intensity
-    batchwise_metadata <- batchwise_recovered_aligned$metadata[,-c(15,16)]
+    recovered_aligned <- batchwise[[batch_id]]$recovered_aligned_features 
+    
+    # Extract metadata and intensities
+    batchwise_intensities <- recovered_aligned$intensity
+    batchwise_metadata <- recovered_aligned$metadata[,c(1:14)]   # columns without sample names, later joining on id
 
-    pseudo_features[[batch_id]] <- dplyr::full_join(batchwise_metadata, batchwise_intensities, by = 'id') |> 
-    tidyr::pivot_longer(cols = samples_in_batch, names_to = "sample", values_to = "sample_intensity") |>
-    dplyr::mutate(area = median(sample_intensity)) |>
-    rename(sd1 = "sd1_mean", sd2 = "sd2_mean")
-
+    # Merge metadata and intesities, reshape
+    pseudo_features[[batch_id]] <- dplyr::full_join(
+        batchwise_metadata, 
+        batchwise_intensities, 
+        by = 'id') |> 
+      tidyr::pivot_longer(
+        cols = samples_in_batch, 
+        names_to = "sample", 
+        values_to = "sample_intensity") |>
+      dplyr::mutate(area = median(sample_intensity)) |>
+      dplyr::rename(sd1 = "sd1_mean", sd2 = "sd2_mean")
   }
 
   message("* computing clusters")
@@ -710,7 +836,7 @@ two.step.hybrid <- function(filenames,
   message("* aligning time")
   corrected <- adjust.time(add_clusters$feature_tables, do.plot=FALSE)  # Check if it still crashing - make the do.plot work
 
-  message("* aligning features")
+  message("* second time computing clusters")
   res <- compute_clusters(
       corrected,
       batch.align.mz.tol,
@@ -721,6 +847,7 @@ two.step.hybrid <- function(filenames,
       sample_names
   )
   
+  message("* aligning features")
   aligned_features <- create_aligned_feature_table(
       dplyr::bind_rows(res$feature_tables),
       ceiling(min.batch.prop * length(batches_idx)),
@@ -729,6 +856,7 @@ two.step.hybrid <- function(filenames,
       res$mz_tol_relative
   )
   
+  # This could be possibly erased if the new feature_recovery works
   aligned_wide <- as_wide_aligned_table(aligned_features)
 
   message("* recovering features across batches")
@@ -767,7 +895,7 @@ two.step.hybrid <- function(filenames,
   features <- new("list")
   features$batchwise_features <- batchwise
   features$known_table <- merge_known_tables(batchwise, batches_idx)
-  features$aligned_features <- as_feature_sample_table(         # Not sure what was aligned originally - should be the pseudotable  returned? - yes
+  features$aligned_features <- as_feature_sample_table(         # Not sure what was aligned originally - should be the pseudotable  returned? - yes --> format metadata+rt+int?
     metadata = aligned_features$rt_crosstab[, c("mz", "rt", "mzmin", "mzmax")],
     rt_crosstab = aligned_features$rt_crosstab,
     int_crosstab = aligned_features$int_crosstab
