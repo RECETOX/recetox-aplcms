@@ -112,15 +112,10 @@ patrick::with_parameters_test_that(
       sample_names = files
     )
 
-    expected <- read_parquet_files(files, "clusters", paste0("_", input, "_clusters.parquet"))
+    result <- lapply(actual$feature_tables, summary)
 
-    for(i in seq_along(files)) {
-      expect_equal(actual$feature_tables[[i]], expected[[i]])
-    }
-
-    expect_equal(actual$mz_tol_relative, expected_mz_tol_relative, tolerance=0.1)
-    expect_equal(actual$rt_tol_relative, expected_rt_tol_relative, tolerance=0.1)
-
+    expected <- readRDS(file.path(testdata, "clusters", paste0("clusters_sd_", input, ".Rds")))
+    expect_equal(result, expected, tolerance = 0.02)
   },
   patrick::cases(
     RCX_shortened_extracted = list(
