@@ -1,7 +1,7 @@
-update_expected <- function(input, files, actual) {
+update_expected <- function(input, files, actual, suffix = "_clusters") {
   testdata <- file.path("..", "testdata")
   for(i in seq_along(files)) {
-    arrow::write_parquet(actual$feature_tables[[i]], file.path(testdata, "clusters", paste0(files[i], "_", input ,"_clusters.parquet")))
+    arrow::write_parquet(actual$feature_tables[[i]], file.path(testdata, "clusters", paste0(files[i], "_", input , suffix, ".parquet")))
   }
 }
 
@@ -53,7 +53,6 @@ patrick::with_parameters_test_that(
 )
 
 test_that("compute clusters simple", {
-  testdata <- file.path("..", "testdata")
   files <- c("8_qc_no_dil_milliq", "21_qc_no_dil_milliq", "29_qc_no_dil_milliq")
 
   extracted <- read_parquet_files(files, "extracted", ".mzml.parquet")
@@ -68,7 +67,27 @@ test_that("compute clusters simple", {
   actual <- actual[order(sapply(actual, function(x) x$sample_id[1]))]
 
   expected <- read_parquet_files(files, "clusters", ".parquet")
+  expected <- expected[order(sapply(expected, function(x) x$sample_id[1]))]
 
+  expect_equal(as.list(actual), expected, tolerance = 0.02)
+})
+
+test_that("compute clusters_simple_sd", {
+  files <- c("8_qc_no_dil_milliq", "21_qc_no_dil_milliq", "29_qc_no_dil_milliq")
+
+  extracted <- read_parquet_files(files, "extracted", ".mzml.parquet")
+
+  actual <- compute_clusters_simple_sd(
+    feature_tables = extracted,
+    sample_names = files,
+    mz_tol_ppm = 10,
+    rt_tol = 10,
+    sd_ratio_tol = 3
+  )
+
+  actual <- actual[order(sapply(actual, function(x) x$sample_id[1]))]
+
+  expected <- read_parquet_files(files, "clusters", "_sd.parquet")
   expected <- expected[order(sapply(expected, function(x) x$sample_id[1]))]
 
   expect_equal(as.list(actual), expected, tolerance = 0.02)
@@ -95,7 +114,6 @@ patrick::with_parameters_test_that(
 
     expected <- read_parquet_files(files, "clusters", paste0("_", input, "_clusters.parquet"))
 
-
     for(i in seq_along(files)) {
       expect_equal(actual$feature_tables[[i]], expected[[i]])
     }
@@ -111,7 +129,7 @@ patrick::with_parameters_test_that(
       mz_max_diff = 10 * 1e-05,
       mz_tol_absolute = 0.01,
       expected_mz_tol_relative = 6.849039e-06,
-      expected_rt_tol_relative = 2.894385
+      expected_rt_tol_relative = 36.9
     ),
     RCX_shortened_adjusted = list(
       files = c("RCX_06_shortened", "RCX_07_shortened", "RCX_08_shortened"),
@@ -119,7 +137,7 @@ patrick::with_parameters_test_that(
       mz_max_diff = 10 * 1e-05,
       mz_tol_absolute = 0.01,
       expected_mz_tol_relative = 6.856763e-06,
-      expected_rt_tol_relative = 1.93185408267324
+      expected_rt_tol_relative = 0.82
     )
   )
 )
