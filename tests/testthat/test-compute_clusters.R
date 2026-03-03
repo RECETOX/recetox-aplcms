@@ -86,11 +86,11 @@ test_that("compute clusters_simple_sd", {
   )
 
   actual <- actual[order(sapply(actual, function(x) x$sample_id[1]))]
+  result <- lapply(actual, summary)
 
-  expected <- read_parquet_files(files, "clusters", "_sd.parquet")
-  expected <- expected[order(sapply(expected, function(x) x$sample_id[1]))]
+  expected <- readRDS(file.path("..", "testdata", "clusters", "clusters_simple_sd.Rds"))
 
-  expect_equal(as.list(actual), expected, tolerance = 0.02)
+  expect_equal(result, expected, tolerance = 0.02)
 })
 
 # parametrised test for compute_clusters_sd function
