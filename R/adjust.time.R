@@ -258,7 +258,7 @@ adjust.time <- function(extracted_features,
 
   template_features <- compute_template(extracted_features)
 
-  corrected_features <- foreach::foreach(features = extracted_features) %do% correct_time(
+  corrected_features <- foreach::foreach(features = extracted_features) %dopar% correct_time(
     features,
     template_features
   )
