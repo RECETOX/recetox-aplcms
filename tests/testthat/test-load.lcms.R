@@ -2,8 +2,8 @@ create_test_case <- function(filename, mz_length, rt_length, intensities_length)
   list(
     filename = filename,
     expected_type = "list",
-    expected_lengths = c(mz = mz_length, rt = rt_length, intensities = intensities_length),
-    expected_num_na = c(mz = 0, rt = 0, intensities = 0)
+    expected_lengths = c(mz = mz_length, rt = rt_length, intensity = intensities_length),
+    expected_num_na = c(mz = 0, rt = 0, intensity = 0)
   )
 }
 

@@ -12,7 +12,7 @@ NULL
 #' \itemize{
 #'   \item mz - The vector of m/z values.
 #'   \item rt - The vector of retention times.
-#'   \item intensities - The vector of intensity values.
+#'   \item intensity - The vector of intensity values.
 #' }
 #' @export
 load.lcms <- function(filename) {
@@ -63,7 +63,7 @@ load.lcms <- function(filename) {
 
   mzR::close(mz_conn)
 
-  features <- tibble::tibble(mz = masses, rt = labels, intensities = intensi)
+  features <- tibble::tibble(mz = masses, rt = labels, intensity = intensi)
   return(features)
 }
 
@@ -79,9 +79,9 @@ process_chunk <- function(spectra, start_times) {
     points <- tibble::tibble(
       mz = spectrum$mZ,
       rt = rep(start_times[j], n),
-      intensities = spectrum$intensity
+      intensity = spectrum$intensity
     )
-    return(dplyr::filter(points, intensities > 0))
+    return(dplyr::filter(points, intensity > 0))
   })
 }
 
@@ -96,10 +96,7 @@ process_chunk <- function(spectra, start_times) {
 #'   \item rt - The vector of retention times.
 #'   \item intensities - The vector of intensity values.
 #' }
-#' @import rawrr
 #' @import tibble
-#' @import purrr
-#' @import future.apply
 #' @import dplyr
 #' @export
 load.lcms.raw <- function(filename, chunk_size = 100) {

@@ -1,21 +1,20 @@
-#' @description
 #' Compute indices of mass differences greater than min_mz_tol.
 #' @param mz mz values of all peaks in all profiles in the study.
 #' @param tolerance tolerance value.
 #' @return breaks Integer indices of mass differences to use.
 #' @export
 compute_breaks_3 <- function(values, tolerance = NA) {
-    l <- length(values)
+  l <- length(values)
 
-    if(!is.na(tolerance)) {
-        differences <- diff(values)
-        indices <- which(differences > tolerance)
-    } else {
-        indices <- which(values[2:l] != values[1:(l-1)])
-    }
+  if (!is.na(tolerance)) {
+    differences <- diff(values)
+    indices <- which(differences > tolerance)
+  } else {
+    indices <- which(values[2:l] != values[1:(l - 1)])
+  }
 
-    breaks <- c(0, indices, l)
-    return(breaks)
+  breaks <- c(0, indices, l)
+  return(breaks)
 }
 
 #' Compute rt relative tolerance to use.
@@ -25,11 +24,11 @@ compute_breaks_3 <- function(values, tolerance = NA) {
 #' @param max.num.segments the maximum number of segments.
 #' @param aver.bin.size The average bin size to determine the number of equally spaced points in the kernel density estimation.
 #' @param number_of_samples The number of spectra in this analysis.
-#' @param rt retention time of all peaks in all profiles in the study.
-#' @param min.bins the minimum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too few observations are present.
-#' @param max.bins the maximum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too many observations are present.
+#' @param rt Retention time of all peaks in all profiles in the study.
+#' @param min.bins The minimum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too few observations are present.
+#' @param max.bins The maximum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too many observations are present.
 #' @param do.plot Indicates whether plot should be drawn.
-#' @return rt_tol_relative the elution time tolerance.
+#' @return rt_tol_relative The elution time tolerance.
 #' @export
 compute_rt_tol_relative <- function(breaks,
                                     max.num.segments,
@@ -39,83 +38,83 @@ compute_rt_tol_relative <- function(breaks,
                                     min.bins,
                                     max.bins,
                                     do.plot = FALSE) {
-    distances <- 0
-    #' This conditional makes sure that length(s) is <= max.num.segments
-    #' If False, length(s) =  max.num.segments, and s[i] is the largest
-    #' integer no greater than the corresponding element. Otherwise
-    #' length(s) =  length(breaks) - 1
-    if (length(breaks) > max.num.segments) {
-        s <- floor(seq(2, length(breaks), length.out = max.num.segments))
-    } else {
-        s <- 2:length(breaks)
+  distances <- 0
+  # This conditional makes sure that length(s) is <= max.num.segments
+  # If False, length(s) =  max.num.segments, and s[i] is the largest
+  # integer no greater than the corresponding element. Otherwise
+  # length(s) =  length(breaks) - 1
+  if (length(breaks) > max.num.segments) {
+    s <- floor(seq(2, length(breaks), length.out = max.num.segments))
+  } else {
+    s <- 2:length(breaks)
+  }
+
+  # This loop creates a vector with distances between rt peaks. Distances
+  # are stored in a triangular matrix and converted to a vector subsequently.
+  # Vector length should be < 100, otherwise, vector is
+  # constructed extracting only 100 samples.
+  for (i in s) {
+    subset_idx <- (breaks[i - 1] + 1):breaks[i] # create subset of indices
+    if (length(subset_idx) <= 3 * number_of_samples) {
+      rt_distances <- as.vector(dist(rt[subset_idx]))
+      if (length(rt_distances) > 100) {
+        rt_distances <- sample(rt_distances, 100)
+      }
+      distances <- c(distances, rt_distances)
     }
-
-    #' This loop creates a vector with distances between rt peaks. Distances
-    #' are stored in a triangular matrix and converted to a vector subsequently.
-    #' Vector length should be < 100, otherwise, vector is
-    #' constructed extracting only 100 samples.
-    for (i in s) {
-        subset_idx <- (breaks[i - 1] + 1):breaks[i] # create subset of indices
-        if (length(subset_idx) <= 3 * number_of_samples) {
-            rt_distances <- as.vector(dist(rt[subset_idx]))
-            if (length(rt_distances) > 100) {
-                rt_distances <- sample(rt_distances, 100)
-            }
-            distances <- c(distances, rt_distances)
-        }
-    }
+  }
 
 
-    # a long vector of distances between rt values (with no particular order)
-    distances <- distances[!is.na(distances)]
-    max_distance <- max(distances) # maximal distance
-    # number of equally spaced points at which the density is to be estimated
-    n <- min(max.bins, max(min.bins, round(length(distances) / aver.bin.size)))
-    # estimate probability density function of distances
-    des <- density(distances,
-        kernel = "gaussian", n = n,
-        bw = max_distance / n * 2, from = 0
+  # a long vector of distances between rt values (with no particular order)
+  distances <- distances[!is.na(distances)]
+  max_distance <- max(distances) # maximal distance
+  # number of equally spaced points at which the density is to be estimated
+  n <- min(max.bins, max(min.bins, round(length(distances) / aver.bin.size)))
+  # estimate probability density function of distances
+  des <- density(distances,
+    kernel = "gaussian", n = n,
+    bw = max_distance / n * 2, from = 0
+  )
+  # the n (-1?) coordinates of the points where the density is estimated
+  points <- des$x[des$x > 0]
+  # the estimated density values
+  density_values <- des$y[des$x > 0]
+
+  linear_regression_model <- lm(density_values[points > max_distance / 4] ~ points[points > max_distance / 4])
+
+  # compute probability density values (y) using the linear function
+  estimated_density_values <- linear_regression_model$coef[1] + linear_regression_model$coef[2] * points
+
+  values_not_last <- density_values[1:(length(density_values) - 1)] # density values without the last one
+  values_not_first <- density_values[2:(length(density_values))] # density values without the first one
+  # pair-wise copy greater value to the left
+  values_not_last[which(values_not_last < values_not_first)] <- values_not_first[which(values_not_last < values_not_first)]
+  density_values[1:(length(density_values) - 1)] <- values_not_last
+
+  # cumulative sum - where density value is greater than estimated density value
+  # cutoff is selected where the density of the empirical distribution is >1.5 times the density of the distribution
+  cumulative <- cumsum(density_values > 1.5 * estimated_density_values)
+
+  # find last index where density value is greater than estimated density value
+  selected <- match(1, cumulative)
+  # corresponding coordinate is used as rt tolerance
+  rt_tol_relative <- points[selected]
+
+  if (do.plot) {
+    tolerance_plot(
+      points,
+      density_values,
+      estimated_density_values,
+      selected,
+      main = "find retention time tolerance"
     )
-    # the n (-1?) coordinates of the points where the density is estimated
-    points <- des$x[des$x > 0]
-    # the estimated density values
-    density_values <- des$y[des$x > 0]
-
-    linear_regression_model <- lm(density_values[points > max_distance / 4] ~ points[points > max_distance / 4])
-
-    # compute probability density values (y) using the linear function
-    estimated_density_values <- linear_regression_model$coef[1] + linear_regression_model$coef[2] * points
-
-    values_not_last <- density_values[1:(length(density_values) - 1)] # density values without the last one
-    values_not_first <- density_values[2:(length(density_values))] # density values without the first one
-    # pair-wise copy greater value to the left
-    values_not_last[which(values_not_last < values_not_first)] <- values_not_first[which(values_not_last < values_not_first)]
-    density_values[1:(length(density_values) - 1)] <- values_not_last
-
-    # cumulative sum - where density value is greater than estimated density value
-    # cutoff is selected where the density of the empirical distribution is >1.5 times the density of the distribution
-    cumulative <- cumsum(density_values > 1.5 * estimated_density_values)
-
-    # find last index where density value is greater than estimated density value
-    selected <- match(1, cumulative)
-    # corresponding coordinate is used as rt tolerance
-    rt_tol_relative <- points[selected]
-
-    if (do.plot) {
-        tolerance_plot(
-            points,
-            density_values,
-            estimated_density_values,
-            selected,
-            main = "find retention time tolerance"
-        )
-    }
-    return(rt_tol_relative)
+  }
+  return(rt_tol_relative)
 }
 
 #' An internal function that find elution time tolerance level.
 #'
-#' This function finds the time tolerance level. Also, it returns the grouping information given the time tolerance.
+#' @description This function finds the time tolerance level. Also, it returns the grouping information given the time tolerance.
 #'
 #' @param features A tibble containing features.
 #' @param number_of_samples The number of spectra in this analysis.
@@ -144,50 +143,50 @@ find.tol.time <- function(features,
                           mz_tol_absolute,
                           max.num.segments,
                           do.plot) {
-    features <- dplyr::arrange_at(features, "mz")
+  features <- dplyr::arrange_at(features, "mz")
 
-    min_mz_tol <- compute_min_mz_tolerance(
-        features$mz,
-        mz_tol_relative,
-        mz_tol_absolute
+  min_mz_tol <- compute_min_mz_tolerance(
+    features$mz,
+    mz_tol_relative,
+    mz_tol_absolute
+  )
+
+  mz_breaks <- compute_breaks_3(features$mz, min_mz_tol)
+  features$mz_group <- 0
+
+  for (i in 2:length(mz_breaks)) {
+    subset_indices <- (mz_breaks[i - 1] + 1):mz_breaks[i]
+    features$mz_group[subset_indices] <- i
+  }
+
+  features <- features |> dplyr::arrange_at(c("mz_group", "rt"))
+
+  mz_breaks <- mz_breaks[c(-1, -length(mz_breaks))]
+
+  if (is.na(rt_tol_relative)) {
+    rt_tol_relative <- compute_rt_tol_relative(
+      mz_breaks,
+      max.num.segments,
+      aver.bin.size,
+      number_of_samples,
+      features$rt,
+      min.bins,
+      max.bins
     )
+  }
 
-    mz_breaks <- compute_breaks_3(features$mz, min_mz_tol)
-    features$mz_group <- 0
+  rt_diffs <- diff(features$rt)
+  rt_breaks <- which(rt_diffs > rt_tol_relative)
+  all.breaks <- c(0, unique(c(mz_breaks, rt_breaks)), nrow(features))
+  all.breaks <- all.breaks[order(all.breaks)]
 
-    for (i in 2:length(mz_breaks)) {
-        subset_indices <- (mz_breaks[i - 1] + 1):mz_breaks[i]
-        features$mz_group[subset_indices] <- i
-    }
+  features$cluster <- 0
+  for (i in 2:length(all.breaks)) {
+    features$cluster[(all.breaks[i - 1] + 1):all.breaks[i]] <- i
+  }
 
-    features <- features |> dplyr::arrange_at(c("mz_group", "rt"))
-
-    mz_breaks <- mz_breaks[c(-1, -length(mz_breaks))]
-
-    if (is.na(rt_tol_relative)) {
-        rt_tol_relative <- compute_rt_tol_relative(
-            mz_breaks,
-            max.num.segments,
-            aver.bin.size,
-            number_of_samples,
-            features$rt,
-            min.bins,
-            max.bins
-        )
-    }
-
-    rt_diffs <- diff(features$rt)
-    rt_breaks <- which(rt_diffs > rt_tol_relative)
-    all.breaks <- c(0, unique(c(mz_breaks, rt_breaks)), nrow(features))
-    all.breaks <- all.breaks[order(all.breaks)]
-
-    features$cluster <- 0
-    for (i in 2:length(all.breaks)) {
-        features$cluster[(all.breaks[i - 1] + 1):all.breaks[i]] <- i
-    }
-
-    list(
-        features = features |> dplyr::select(-mz_group),
-        rt.tol = rt_tol_relative
-    )
+  list(
+    features = features |> dplyr::select(-mz_group),
+    rt.tol = rt_tol_relative
+  )
 }

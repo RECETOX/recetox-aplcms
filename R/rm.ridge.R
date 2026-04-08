@@ -1,4 +1,3 @@
-#' @description
 #' Computes indices of retention time intervals of a selected retention time range.
 #' @param rt full retention time vector.
 #' @param rt_sel Selected retention time range vector.
@@ -21,7 +20,6 @@ compute_rt_intervals_indices <- function(rt, rt_sel){
 }
 
 #' Removing long ridges at the same m/z.
-#' 
 #' @description
 #' This is an internal function. It substracts a background when an EIC continuously 
 #' span more than half the retention time range. The background is estimated through kernel smoothing.
