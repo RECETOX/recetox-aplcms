@@ -2,7 +2,6 @@
 NULL
 #> NULL
 
-
 #' Match peaks from sample table to already known peaks via similar m/z and rt.
 #' @param aligned A list object with three tibble tables: metadata, intensity, and rt.
 #' @param known_table A table of known/previously detected peaks.
@@ -31,24 +30,25 @@ match_peaks <- function(
              dplyr::mutate(match_mz_known = list(which(abs(known_table[['m.z']] - mz) < mz*mz_tol_relative))) |>
              dplyr::slice(which(length(match_mz_known) != 0)) |>
              dplyr::mutate(match_rt_known = list(which(abs(known_table[['RT_mean']] - rt) < rt*rt_tol_relative))) |>
+             dplyr::select(id, match_mz_known, match_rt_known) |>
              ungroup()
           
   matched <- match_data |> 
             dplyr::select(id, match_mz_known, match_rt_known) |>
             dplyr::filter(length(unlist(match_rt_known)) > 0 | length(unlist(match_mz_known)) > 0 ) 
-# What to do if more indices match?
-  if (length(unlist(matched$match_rt_known)) == 0) {
-    pairing <- matched |> dplyr::rowwise() |>
-             dplyr::mutate(new = id, known = min(unlist(match_mz_known)), 
-             id = NULL, match_mz_known = NULL, match_rt_known = NULL) |>
-             ungroup()
-  } else {
-    pairing <- matched |> dplyr::rowwise() |>
-             dplyr::mutate(new = id, known = min(unlist(match_rt_known)), 
-             id = NULL, match_mz_known = NULL, match_rt_known = NULL) |>
-             ungroup()
-  }
 
+# If any RT match exists anywhere, use RT column; else use MZ column
+source_col <- if (any(lengths(matched$match_rt_known) > 0)) "match_rt_known" else "match_mz_known"
+
+# If new feature has more matches unlist both into the matrix - results in repeated indices
+pairing <- matched |>
+  dplyr::transmute(
+    new = id,
+    known = .data[[source_col]]
+  ) |>
+  tidyr::unnest_longer(known) |>
+  dplyr::mutate(known = as.integer(known)) |>
+  dplyr::distinct(new, known)
   return(as.data.frame(pairing))
 }
 
@@ -174,18 +174,18 @@ augment_known_table <- function(
   newly_found_ftrs <- which(!(seq_len(nrow(aligned$metadata)) %in% pairing[, 'new']))
   num_exp_found <- apply(aligned$intensity != 0, 1, sum)
 
-  empty_row <- dplyr::slice(known_table, 1)      #create sample row to preserve colnames and types for later compatibility in bind_rows
   # Adding new features to the known table
+  empty_row <- dplyr::slice(known_table, 1) |> dplyr::mutate(dplyr::across(dplyr::everything(), ~ NA))     
   for (i in newly_found_ftrs) {
     if (num_exp_found[i] >= new_feature_min_count) {
-      row <- peak_characterize(     #here we introduce a lot of NA values. Why? ---> incompatible tibbles row and known_table
+      row <- peak_characterize(    
         existing_row = empty_row,
         metadata_row = aligned$metadata[i, ],
         intensity_row = aligned$intensity[i, ],
         rt_row = aligned$rt[i, ],
         new = TRUE)
       known_table <- dplyr::bind_rows(known_table, row)
-      pairing <- rbind(pairing, c(i, nrow(known_table)))      #influenced by structure of pairing data.frame from match_peaks() function, needs to be fixed either here or in match_peaks
+      pairing <- rbind(pairing, c(i, nrow(known_table)))      
     }
   }
 
@@ -339,7 +339,7 @@ hybrid <- function(
 
 
   message("**** time correction ****")
-    corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %do% correct_time(
+  corrected <- foreach::foreach(this.feature = extracted_clusters$feature_tables) %dopar% correct_time(
     this.feature,
     template_features
   )
@@ -357,12 +357,12 @@ hybrid <- function(
 
   message("**** feature alignment ****")
   aligned <- create_aligned_feature_table(
-      dplyr::bind_rows(adjusted_clusters$feature_tables),
-      min_occurrence,
-      sample_names,
-      adjusted_clusters$rt_tol_relative,
-      adjusted_clusters$mz_tol_relative,
-      cluster
+      features_table = dplyr::bind_rows(adjusted_clusters$feature_tables),
+      min_occurrence = min_occurrence,
+      sample_names = sample_names,
+      rt_tol_relative = adjusted_clusters$rt_tol_relative,
+      mz_tol_relative = adjusted_clusters$mz_tol_relative,
+      cluster = cluster
   )
 
   message("**** augmenting with known peaks ****")
@@ -418,7 +418,7 @@ hybrid <- function(
 
 
   message("**** second time correction ****")
-  corrected <- foreach::foreach(this.feature = recovered_clusters$feature_tables) %do% correct_time(
+  corrected <- foreach::foreach(this.feature = recovered_clusters$feature_tables) %dopar% correct_time(
     this.feature,
     template_features
   )
@@ -436,12 +436,12 @@ hybrid <- function(
   
   message("**** second feature alignment ****")
   recovered_aligned <- create_aligned_feature_table(
-      dplyr::bind_rows(adjusted_clusters$feature_tables),
-      min_occurrence,
-      sample_names,
-      adjusted_clusters$rt_tol_relative,
-      adjusted_clusters$mz_tol_relative,
-      cluster
+      features_table = dplyr::bind_rows(adjusted_clusters$feature_tables),
+      min_occurrence = min_occurrence,
+      sample_names = sample_names,
+      rt_tol_relative = adjusted_clusters$rt_tol_relative,
+      mz_tol_relative = adjusted_clusters$mz_tol_relative,
+      cluster = cluster
   )
 
   message("**** augmenting known table ****")
