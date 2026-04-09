@@ -642,9 +642,9 @@ two.step.hybrid <- function(filenames,
   for (batch.i in batches_idx) {
     files_batch <- dplyr::filter(filenames_batchwise, batch == batch.i)$filename
     samples_in_batch <- get_sample_name(files_batch)
-    message("* processing ", length(files_batch), " samples from batch ", batch.i, ": ")
-    print(samples_in_batch)
-
+    message("* processing ", length(files_batch), " samples from batch ", batch.i, ":\n", 
+    paste(samples_in_batch, collapse = "\n"))
+    
     features <- hybrid(
       filenames = files_batch,
       known_table = known_table,
