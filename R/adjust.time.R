@@ -149,7 +149,7 @@ correct_time <- function(this.feature, template_features) {
       this.comb <- compute_comb(template_features, this.feature)
       sel <- compute_sel(this.comb)
 
-      if (length(sel) < 20) {
+      if (length(sel) < 10) {
         stop("too few, aborted")
       } else {
         all.ftr.table <- compute_template_adjusted_rt(this.comb, sel, j)
@@ -242,31 +242,33 @@ correct_time_v2 <- function(features, template) {
 #'  column in each of the matrices is changed to new adjusted values.
 #' @export
 adjust.time <- function(extracted_features,
+                        rt_tol_relative = NA,
                         colors = NA,
-                        do.plot = TRUE) {
+                        do_plot = FALSE) {
   number_of_samples <- length(extracted_features)
 
   if (number_of_samples <= 1) {
     message("Only one sample. No need to correct for time.")
   }
 
-  if (do.plot) {
+  if (do_plot) {
     par(mfrow = c(2, 2))
     draw_plot(label = "Retention time \n adjustment", cex = 2)
   }
 
   template_features <- compute_template(extracted_features)
 
-  corrected_features <- foreach::foreach(features = extracted_features) %do% correct_time(
+  corrected_features <- foreach::foreach(features = extracted_features) %dopar% correct_time(
     features,
     template_features
   )
 
-  if (do.plot) {
+  if (do_plot) {
     draw_rt_correction_plot(
       colors,
       extracted_features,
       corrected_features,
+      rt_tol_relative
     )
   }
 

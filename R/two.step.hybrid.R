@@ -19,7 +19,7 @@ NULL
 as_feature_crosstab <- function(sample_names, metadata, data) {
   metadata_cols <- c('id', 'mz', 'rt', 'mzmin', 'mzmax')
   data <- select(metadata, metadata_cols) |>
-    inner_join(data, on='id')
+    inner_join(data, by ='id')
   colnames(data) <- c(metadata_cols, sample_names)
   
   return(data)
@@ -65,45 +65,57 @@ recover_weaker_signals <- function(
   use_observed_range,
   min_bandwidth,
   max_bandwidth,
-  recover_min_count
+  recover_min_count,
+  min_occurrence
 ) {
   snow::clusterExport(cluster, c('recover.weaker'))
   snow::clusterEvalQ(cluster, library("splines"))
   
   recovered <- lapply(seq_along(filenames), function(i) {
     recover.weaker(
-      sample_name = get_sample_name(filenames[i]),
       filename = filenames[[i]],
+      sample_name = get_sample_name(filenames[i]),
+      metadata_table = aligned_int_crosstab,
+      intensity_table = aligned_int_crosstab,
+      rt_table = aligned_rt_crosstab,
+      mz_tol_relative = aligned_mz_tolerance,
+      rt_tol_relative = aligned_rt_tolerance,
       extracted_features = as_tibble(extracted_features[[i]]),
       adjusted_features = as_tibble(corrected_features[[i]]),
-      pk.times = aligned_rt_crosstab,
-      aligned.ftrs = aligned_int_crosstab,
-      orig.tol = original_mz_tolerance,
-      align.mz.tol = aligned_mz_tolerance,
-      align.rt.tol = aligned_rt_tolerance,
       recover_mz_range = recover_mz_range,
       recover_rt_range = recover_rt_range,
-      use.observed.range = use_observed_range,
+      use_observed_range = use_observed_range,
+      mz_tol = original_mz_tolerance,
+      min_bandwidth = min_bandwidth,
+      max_bandwidth = max_bandwidth,
       bandwidth = 0.5,
-      min.bw = min_bandwidth,
-      max.bw = max_bandwidth,
-      recover.min.count = recover_min_count
+      recover_min_count = recover_min_count,
+      intensity_weighted = TRUE
     )
-  })
-  
-  feature_table <- aligned_rt_crosstab[, 1:4]
-  rt_crosstab <- cbind(feature_table, sapply(recovered, function(x) x$this.times))
-  int_crosstab <- cbind(feature_table, sapply(recovered, function(x) x$this.ftrs))
-  
-  feature_names <- rownames(feature_table)
-  sample_names <- colnames(aligned_rt_crosstab[, -(1:4)])
-  
-  list(
-    extracted_features = lapply(recovered, function(x) x$this.f1),
-    corrected_features = lapply(recovered, function(x) x$this.f2),
-    rt_crosstab = as_feature_crosstab(feature_names, sample_names, rt_crosstab),
-    int_crosstab = as_feature_crosstab(feature_names, sample_names, int_crosstab)
+  })   
+
+  sample_names <- get_sample_name(filenames)
+  adjusted_features <- lapply(recovered, function(x) x$adjusted_features)
+
+  res <- compute_clusters(
+    feature_tables = adjusted_features,
+    mz_tol_relative = aligned_mz_tolerance,
+    mz_tol_absolute = 0.01,
+    mz_max_diff = 10 * aligned_mz_tolerance,       
+    rt_tol_relative = aligned_rt_tolerance,
+    do.plot = FALSE,
+    sample_names = sample_names
   )
+  
+  aligned_features <- create_aligned_feature_table(
+    features_table = dplyr::bind_rows(res$feature_tables),
+    min_occurrence = min_occurrence,     
+    sample_names = sample_names,
+    rt_tol_relative = res$rt_tol_relative,
+    mz_tol_relative = res$mz_tol_relative
+   )
+
+  return(aligned_features)
 }
 
 #' Internal function: Pivot feature values from long to wide format.
@@ -167,7 +179,7 @@ wide_to_long_feature_table <- function(wide_table, sample_names) {
     dplyr::select(-contains("_rt")) %>%
     mutate(sample = stringr::str_remove_all(sample, "_intensity"))
   
-  long_features <- dplyr::full_join(long_rt, long_int, by = c("feature", "mz", "rt", "mz_min", "mz_max", "sample"))
+  long_features <- dplyr::full_join(long_rt, long_int, by = c("feature", "mz", "rt", "mzmin", "mzmax", "sample"))
   
   return(long_features)
 }
@@ -195,13 +207,14 @@ extract_pattern_colnames <- function(dataframe, pattern) {
 #' @return A tibble in wide format with feature metadata and sample-specific RT and intensity values.
 #' @export
 as_wide_aligned_table <- function(aligned) {
-  mz_scale_table <- aligned$rt_crosstab[, c("mz", "rt", "mz_min", "mz_max")]
+  mz_scale_table <- aligned$metadata[, c("mz", "rt", "mzmin", "mzmax")]
   aligned <- as_feature_sample_table(
-    rt_crosstab = aligned$rt_crosstab,
-    int_crosstab = aligned$int_crosstab
+    metadata = aligned$metadata,
+    rt_crosstab = aligned$rt,
+    int_crosstab = aligned$int
   )
   aligned <- long_to_wide_feature_table(aligned)
-  aligned <- dplyr::inner_join(aligned, mz_scale_table, by = c("mz", "rt"))
+  aligned <- dplyr::inner_join(aligned, mz_scale_table, by = c("mz", "rt")) 
   return(aligned)
 }
 
@@ -244,47 +257,10 @@ merge_known_tables <- function(batchwise, batches_idx) {
   )
 
   for (batch in batches_idx) {
-    known_table <- dplyr::full_join(known_table, batchwise[[batch]]$updated.known.table, by = colnames)
+    known_table <- dplyr::full_join(known_table, batchwise[[batch]]$updated_known_table, by = colnames)
   }
 
   return(known_table)
-}
-
-#' Internal function: Filter features based on presence criteria.
-#'
-#' @description
-#' Filters features based on their presence across samples within batches and across batches.
-#' A feature must be present in a minimum proportion of samples within batches and in a
-#' minimum proportion of batches to be retained.
-#'
-#' @param feature_table A tibble containing feature data with intensity columns.
-#' @param metadata A tibble containing sample metadata with batch information.
-#' @param batches_idx A vector of batch indices.
-#' @param within_batch_threshold The minimum proportion of samples within a batch where a feature must be present.
-#' @param across_batch_threshold The minimum proportion of batches where a feature must meet the within-batch threshold.
-#'
-#' @return A filtered feature table containing only features meeting the presence criteria.
-#' @export
-filter_features_by_presence <- function(feature_table,
-                                        metadata,
-                                        batches_idx,
-                                        within_batch_threshold,
-                                        across_batch_threshold) {
-  across_batch_presence <- data.frame(
-    matrix(
-      nrow = nrow(feature_table),
-      ncol = length(batches_idx)
-    )
-  )
-  for (batch_id in batches_idx) {
-    samples <- filter(metadata, batch == batch_id)$sample_name
-    intensities <- dplyr::select(feature_table, contains("_intensity"))
-    presence <- intensities > 0
-    above_threshold <- rowSums(presence) / length(samples) >= within_batch_threshold
-    across_batch_presence[, batch_id] <- above_threshold
-  }
-  above_threshold <- rowSums(across_batch_presence) / length(batches_idx) >= across_batch_threshold
-  return(feature_table[above_threshold, ])
 }
 
 #' Internal function: Readjust retention times to match between-batch alignment.
@@ -307,10 +283,10 @@ readjust_times <- function(within_batch, between_batch) {
     for (i in 1:nrow(within_batch$corrected_features[[j]])) {
       diff.time <- abs(
         within_batch_recovered$rt -
-          within_batch$corrected_features[[j]][i, "pos"]
+          within_batch$corrected_features[[j]][i, "rt"]
       )
       min_idx <- which(diff.time == min(diff.time))[1]
-      within_batch$corrected_features[[j]][i, "pos"] <- between_batch_rts[min_idx]
+      within_batch$corrected_features[[j]][i, "rt"] <- between_batch_rts[min_idx]
     }
   }
   return(within_batch$corrected_features)
@@ -355,6 +331,40 @@ bind_batch_label_column <- function(filenames, metadata) {
   return(dplyr::select(filenames, -sample_name))
 }
 
+
+#' Internal function: Align batch tables returned by feature_recovery.
+#'
+#' @description
+#' Combines individual batch tibbles into one list object containing aligned metadata, intensity and rt tibbles from all samples. 
+#'
+#' @param recovered_tables A list of tibbles containing joined metadata, intensity and rt tibbles produced by recover_weaker_signals.
+#' @param batch_names A list of batch names - treated as sample names.
+#' @param batch_align_mz_tol The m/z tolerance for batch alignment.
+#' @param batch_align_rt_tol The retention time tolerance for batch alignment.
+#' @param min_occurrence A feature has to show up in at least this number of profiles to be included in the final result.
+#'
+#' @return A list of aligned metadata, intensity and rt tibbles across batches.
+#' @export
+
+align_recovered_batch_tables <- function(recovered_tables, 
+                                          batch_names,
+                                          batch_align_mz_tol,
+                                          batch_align_rt_tol,
+                                          min_occurrence){
+
+  batch_clustered <- compute_clusters_simple(feature_tables = recovered_tables, 
+                                       sample_names = batch_names, 
+                                       mz_tol_ppm = batch_align_mz_tol, 
+                                       rt_tol = batch_align_rt_tol)
+
+  batch_aligned <- create_aligned_feature_table_simple(features_table = dplyr::bind_rows(batch_clustered), 
+                                      sample_names = batch_names, 
+                                      min_occurrence = min_occurrence,
+                                      batch = TRUE)
+  return(batch_aligned)
+}
+
+
 #' Internal function: Recover features across batches.
 #'
 #' @description
@@ -369,15 +379,17 @@ bind_batch_label_column <- function(filenames, metadata) {
 #' @param corrected A list of time-corrected feature tables for between-batch alignment.
 #' @param aligned A wide-format aligned feature table from between-batch alignment.
 #' @param batches_idx A vector of batch indices.
-#' @param mz.tol The m/z tolerance for feature matching.
-#' @param batch.align.mz.tol The m/z tolerance for batch alignment.
-#' @param batch.align.rt.tol The retention time tolerance for batch alignment.
-#' @param recover.mz.range The m/z range for weak signal recovery.
-#' @param recover.rt.range The retention time range for weak signal recovery.
-#' @param use.observed.range Logical; whether to use observed ranges.
-#' @param min.bw Minimum bandwidth for smoothing.
-#' @param max.bw Maximum bandwidth for smoothing.
-#' @param recover.min.count Minimum count for recovered signals.
+#' @param mz_tol The m/z tolerance for feature matching.
+#' @param batch_align_mz_tol The m/z tolerance for batch alignment.
+#' @param batch_align_rt_tol The retention time tolerance for batch alignment.
+#' @param recover_mz_range The m/z range for weak signal recovery.
+#' @param recover_rt_range The retention time range for weak signal recovery.
+#' @param use_observed_range Logical; whether to use observed ranges.
+#' @param min_bw Minimum bandwidth for smoothing.
+#' @param max_bw Maximum bandwidth for smoothing.
+#' @param recover_min_count Minimum count for recovered signals.
+#' @param min_occurrence A feature has to show up in at least this number of profiles to be included in the final result.
+#' @param batch_names A list of batch names - treated as sample names to differentiate between batches.
 #'
 #' @return A tibble containing recovered features across all batches in wide format.
 #' @export
@@ -388,21 +400,20 @@ feature_recovery <- function(cluster,
                              corrected,
                              aligned,
                              batches_idx,
-                             mz.tol,
-                             batch.align.mz.tol,
-                             batch.align.rt.tol,
-                             recover.mz.range,
-                             recover.rt.range,
-                             use.observed.range,
-                             min.bw,
-                             max.bw,
-                             recover.min.count) {
-  recovered <- tibble(
-    mz = numeric(),
-    rt = numeric(),
-    mz_min = numeric(),
-    mz_max = numeric()
-  )
+                             mz_tol,
+                             batch_align_mz_tol,
+                             batch_align_rt_tol,
+                             recover_mz_range,
+                             recover_rt_range,
+                             use_observed_range,
+                             min_bw,
+                             max_bw,
+                             recover_min_count,
+                             min_occurrence,
+                             batch_names) {
+
+  recovered_batchwise <- new("list")
+  recovered_batchwise_joined <- new("list")
 
   for (batch_id in batches_idx)
   {
@@ -412,38 +423,43 @@ feature_recovery <- function(cluster,
     # adjusting the time (already within batch adjusted)
     this.features <- readjust_times(batchwise[[batch_id]], corrected[[batch_id]])
     aligned_intensities <- dplyr::select(aligned, contains("_intensity"))
-    batchwise_intensities <- dplyr::select(this.fake, contains("_intensity"))
+    batchwise_intensities <- as.matrix(dplyr::select(this.fake, contains("_intensity")))
 
-    this.fake.time <- dplyr::select(this.fake, contains("_rt"))
+    this.fake.time <- as.matrix(dplyr::select(this.fake, contains("_rt")))
     this.pk.time <- this.aligned <- matrix(0, nrow = nrow(aligned), ncol = ncol(batchwise_intensities))
 
     for (sample in 1:nrow(aligned)) {
+      # Present in aligned data
       if (aligned_intensities[sample, batch_id] != 0) {
-        idx <- which(between(this.fake$mz, aligned[sample, "mz_min"], aligned[sample, "mz_max"]) &
+        idx <- which(between(this.fake$mz, aligned[sample, "mzmin"], aligned[sample, "mzmax"]) &
           abs(this.fake.medians - aligned_intensities[sample, batch_id]) < 1)
+        
         if (length(idx) < 1) {
-          idx <- which(between(this.fake$mz, aligned[sample, "mz_min"], aligned[sample, "mz_max"]))
+          idx <- which(between(this.fake$mz, aligned[sample, "mzmin"], aligned[sample, "mzmax"]))
         }
+        
         if (length(idx) < 1) {
           message("warning: batch ", batch_id, " sample ", sample, " has matching issue")
         } else {
-          this.aligned[sample, ] <- apply(batchwise_intensities[idx, ], 2, sum)
-          this.pk.time[sample, ] <- apply(this.fake.time[idx, ], 2, median)
+          this.aligned[sample, ] <- as.numeric(apply(batchwise_intensities[idx, ,drop = FALSE], 2, sum))
+          this.pk.time[sample, ] <- as.numeric(apply(this.fake.time[idx, ,drop = FALSE], 2, median))
         }
-      } else {
-        ### go into individual feature tables to find a match
+      } 
+      
+      else {
+        ### go into individual feature tables to find a match - missing from aligned data, recapturing from individual features
         recaptured <- rep(0, ncol(this.aligned))
         recaptured.time <- rep(NA, ncol(this.aligned))
 
         for (j in 1:length(this.features)) {
           diff.mz <- abs(this.features[[j]][, "mz"] - aligned[sample, "mz"])
-          diff.time <- abs(this.features[[j]][, "pos"] - aligned[sample, "rt"])
-          idx <- which(diff.mz < aligned[sample, "mz"] * batch.align.mz.tol & diff.time <= batch.align.rt.tol)
+          diff.time <- abs(this.features[[j]][, "rt"] - aligned[sample, "rt"])
+          idx <- which(diff.mz < aligned[sample, "mz"] * batch_align_mz_tol & diff.time <= batch_align_rt_tol)
 
           if (length(idx) > 0) {
-            idx <- idx[which(diff.time[idx] == min(diff.time[idx]))[1]]
-            recaptured[j] <- this.features[[j]][idx, "area"]
-            recaptured.time[j] <- this.features[[j]][idx, "pos"]
+            idx <- idx[which(diff.time[idx,] == min(diff.time[idx,]))[1]]
+            recaptured[j] <- as.numeric(this.features[[j]][idx, "area"])
+            recaptured.time[j] <- as.numeric(this.features[[j]][idx, "rt"])
           }
         }
         this.aligned[sample, ] <- recaptured
@@ -457,207 +473,165 @@ feature_recovery <- function(cluster,
     colnames(this.pk.time) <- stringr::str_remove_all(colnames(this.pk.time), "_rt")
 
 
-    aligned_features <- dplyr::select(aligned, mz, rt, mz_min, mz_max)
+    aligned_features <- dplyr::select(aligned, mz, rt, mzmin, mzmax)
     aligned_int_crosstab <- dplyr::bind_cols(aligned_features, as_tibble(this.aligned))
     aligned_rt_crosstab <- dplyr::bind_cols(aligned_features, as_tibble(this.pk.time))
-    recovered_batchwise <- recover_weaker_signals(
+    
+    recovered_batchwise[[batch_id]] <- recover_weaker_signals(
       cluster = cluster,
       filenames = filter(filenames_batchwise, batch == batch_id)$filename,
       extracted_features = batchwise[[batch_id]]$extracted_features,
       corrected_features = batchwise[[batch_id]]$corrected_features,
       aligned_rt_crosstab = aligned_rt_crosstab,
       aligned_int_crosstab = aligned_int_crosstab,
-      original_mz_tolerance = mz.tol,
-      aligned_mz_tolerance = batch.align.mz.tol,
-      aligned_rt_tolerance = batch.align.rt.tol,
-      mz_range = recover.mz.range,
-      rt_range = recover.rt.range,
-      use_observed_range = use.observed.range,
-      min_bandwidth = min.bw,
-      max_bandwidth = max.bw,
-      recover_min_count = recover.min.count
+      original_mz_tolerance = mz_tol,
+      aligned_mz_tolerance = batch_align_mz_tol,
+      aligned_rt_tolerance = batch_align_rt_tol,
+      recover_mz_range = recover_mz_range,
+      recover_rt_range = recover_rt_range,
+      use_observed_range = use_observed_range,
+      min_bandwidth = min_bw,
+      max_bandwidth = max_bw,
+      recover_min_count = recover_min_count,
+      min_occurrence = min_occurrence
     )
 
-    recovered_batchwise <- as_wide_aligned_table(recovered_batchwise)
-
-    recovered <- dplyr::full_join(recovered, recovered_batchwise, by = c("mz", "rt", "mz_min", "mz_max"))
+    recovered_batchwise_joined[[batch_id]] <- dplyr::full_join(recovered_batchwise[[batch_id]]$intensity, 
+                                                        recovered_batchwise[[batch_id]]$rt, 
+                                                        by = 'id', suffix = c('_intensity', '_rt')) |> 
+                                              dplyr::full_join(recovered_batchwise[[batch_id]]$metadata, by='id') |>
+                                              dplyr::rename(sd1 = sd1_mean, sd2 = sd2_mean)
   }
-  recovered <- dplyr::select(recovered, mz, rt, mz_min, mz_max, contains("_rt"), contains("_intensity"))
+
+  recovered <- align_recovered_batch_tables(recovered_tables = recovered_batchwise_joined,
+                                            batch_names = batch_names,
+                                            batch_align_mz_tol = batch_align_mz_tol*1e06,
+                                            batch_align_rt_tol = batch_align_rt_tol,
+                                            min_occurrence = 1)
+
 
   return(recovered)
-}
-
-#' Internal function: Adapt semi-supervised output to hybrid format.
-#'
-#' @description
-#' Converts the output from semi-supervised feature detection (semi.sup function) to
-#' the format expected by the hybrid workflow. This includes renaming columns, converting
-#' between wide and long formats, and restructuring the feature tables.
-#'
-#' @param batchwise A list of batch processing results from semi.sup.
-#' @param batches_idx A vector of batch indices.
-#'
-#' @return The modified batchwise list with reformatted feature tables suitable for hybrid processing.
-#' @export
-semisup_to_hybrid_adapter <- function(batchwise, batches_idx) {
-  for (batch in batches_idx) {
-    final.ftrs <- as_tibble(batchwise[[batch]]$final.ftrs)
-    final.times <- as_tibble(batchwise[[batch]]$final.times)
-
-    mz_pattern <- c("mz.min", "mz.max")
-    mz_replacement <- c("mz_min", "mz_max")
-
-    colnames(final.ftrs) <- stringr::str_replace_all(
-      colnames(final.ftrs),
-      mz_pattern,
-      mz_replacement)
-
-    colnames(final.times) <- stringr::str_replace_all(
-      colnames(final.ftrs),
-      mz_pattern,
-      mz_replacement )
-
-    feature_cols <- c("mz", "time", "mz_min", "mz_max")
-    sample_cols_idx <- which(!colnames(final.ftrs) %in% feature_cols)
-
-    colnames(final.ftrs)[sample_cols_idx] <- tools::file_path_sans_ext(colnames(final.ftrs)[sample_cols_idx])
-    colnames(final.times)[sample_cols_idx] <- tools::file_path_sans_ext(colnames(final.times)[sample_cols_idx])
-
-    sample_cols <- colnames(final.ftrs)[sample_cols_idx]
-
-    final.ftrs <- tidyr::pivot_longer(final.ftrs,
-      cols = all_of(sample_cols),
-      names_to = "sample",
-      values_to = "sample_intensity"
-    )
-
-    final.times <- tidyr::pivot_longer(final.times,
-      cols = all_of(sample_cols),
-      names_to = "sample",
-      values_to = "sample_rt"
-    )
-
-    recovered_feature_sample_table <- dplyr::full_join(final.times, final.ftrs,
-      by = c("mz", "time", "mz_min", "mz_max", "sample")
-    )
-
-    colnames(recovered_feature_sample_table)[2] <- "rt"
-
-    batchwise[[batch]]$recovered_feature_sample_table <- recovered_feature_sample_table
-
-    batchwise[[batch]]$corrected_features <- batchwise[[batch]]$features2
-    batchwise[[batch]]$extracted_features <- batchwise[[batch]]$features
-  }
-
-  return(batchwise)
 }
 
 #' Two step hybrid feature detection.
 #' 
 #' A two-stage hybrid feature detection and alignment procedure, for data generated in multiple batches.
-#' NOTE: This function is OBSOLETE and should no longer be used,
-#' since it is no longer maintained and will soon be removed.
 #' 
 #' @param filenames file names
 #' @param metadata the batch label of each file.
 #' @param work_dir The folder where all CDF files to be processed are located.
-#' @param min.within.batch.prop.detect A feature needs to be present in at least this proportion of the files, 
+#' @param min_within_batch_prop_detect A feature needs to be present in at least this proportion of the files, 
 #'  for it to be initially detected as a feature for a batch. This parameter replaces the "min.exp" parameter in semi.sup().
-#' @param min.within.batch.prop.report A feature needs to be present in at least this proportion of the files, 
-#'  in a proportion of batches controlled by "min.batch.prop", to be included in the final feature table. This parameter 
+#' @param min_within_batch_prop_report A feature needs to be present in at least this proportion of the files, 
+#'  in a proportion of batches controlled by "min_batch_prop", to be included in the final feature table. This parameter 
 #'  replaces the "min.exp" parameter in semi.sup().
-#' @param min.batch.prop A feature needs to be present in at least this proportion of the batches, for it to be 
+#' @param min_batch_prop A feature needs to be present in at least this proportion of the batches, for it to be 
 #'  considered in the entire data.
-#' @param batch.align.mz.tol The m/z tolerance in ppm for between-batch alignment.
-#' @param batch.align.rt.tol The RT tolerance for between-batch alignment.
-#' @param known.table A data frame containing the known metabolite ions and previously found features.
+#' @param min_occurrence A feature has to show up in at least this number of profiles to be included in the final result.
+#' @param batch_align_mz_tol The m/z tolerance in ppm for between-batch alignment.
+#' @param batch_align_rt_tol The RT tolerance for between-batch alignment.
+#' @param known_table A data frame containing the known metabolite ions and previously found features.
 #' @param cluster The number of CPU cores to be used
-#' @param min.pres This is a parameter of the run filter, to be passed to the function remove_noise().
-#' @param min.run This is a parameter of the run filter, to be passed to the function remove_noise().
-#' @param mz.tol The user can provide the m/z tolerance level for peak identification. This value is expressed as the 
+#' @param min_pres This is a parameter of the run filter, to be passed to the function remove_noise().
+#' @param min_run This is a parameter of the run filter, to be passed to the function remove_noise().
+#' @param mz_tol The user can provide the m/z tolerance level for peak identification. This value is expressed as the 
 #'  percentage of the m/z value. This value, multiplied by the m/z value, becomes the cutoff level.
-#' @param baseline.correct.noise.percentile The perenctile of signal strength of those EIC that don't pass the run filter, 
+#' @param mz_tol_relative The m/z tolerance level for peak alignment. The default is NA, which allows the program to search for the 
+#'  tolerance level based on the data. This value is expressed as the percentage of the m/z value. This value, multiplied by the m/z 
+#'  value, becomes the cutoff level.
+#' @param rt_tol_relative The retention time tolerance level for peak alignment. The default is NA, which allows the program to search for 
+#'  the tolerance level based on the data.
+#' @param baseline_correct_noise_percentile The perenctile of signal strength of those EIC that don't pass the run filter, 
 #'  to be used as the baseline threshold of signal strength. This parameter is passed to remove_noise()
-#' @param shape.model The mathematical model for the shape of a peak. There are two choices - "bi-Gaussian" and "Gaussian". 
+#' @param shape_model The mathematical model for the shape of a peak. There are two choices - "bi-Gaussian" and "Gaussian". 
 #'  When the peaks are asymmetric, the bi-Gaussian is better. The default is "bi-Gaussian".
-#' @param baseline.correct This is a parameter in peak detection. After grouping the observations, the highest observation 
+#' @param baseline_correct This is a parameter in peak detection. After grouping the observations, the highest observation 
 #'  in each group is found. If the highest is lower than this value, the entire group will be deleted. The default value is NA, 
 #'  which allows the program to search for the cutoff level.
-#' @param peak.estim.method the bi-Gaussian peak parameter estimation method, to be passed to subroutine prof.to.features. 
+#' @param peak_estim_method the bi-Gaussian peak parameter estimation method, to be passed to subroutine prof.to.features. 
 #'  Two possible values: moment and EM.
-#' @param min.bw The minimum bandwidth in the smoother in prof.to.features().
-#' @param max.bw The maximum bandwidth in the smoother in prof.to.features().
-#' @param sd.cut A parameter for the prof.to.features() function. A vector of two. Features with standard deviation outside 
+#' @param min_bw The minimum bandwidth in the smoother in prof.to.features().
+#' @param max_bw The maximum bandwidth in the smoother in prof.to.features().
+#' @param sd_cut A parameter for the prof.to.features() function. A vector of two. Features with standard deviation outside 
 #'  the range defined by the two numbers are eliminated.
-#' @param sigma.ratio.lim A parameter for the prof.to.features() function. A vector of two. It enforces the belief of the 
+#' @param sigma_ratio_lim A parameter for the prof.to.features() function. A vector of two. It enforces the belief of the 
 #'  range of the ratio between the left-standard deviation and the right-standard deviation of the bi-Gaussian function used 
 #'  to fit the data.
-#' @param component.eliminate In fitting mixture of bi-Gaussian (or Gaussian) model of an EIC, when a component accounts 
+#' @param component_eliminate In fitting mixture of bi-Gaussian (or Gaussian) model of an EIC, when a component accounts 
 #'  for a proportion of intensities less than this value, the component will be ignored.
-#' @param moment.power The power parameter for data transformation when fitting the bi-Gaussian or Gaussian mixture model in an EIC.
-#' @param align.mz.tol The user can provide the m/z tolerance level for peak alignment to override the program's selection. 
+#' @param moment_power The power parameter for data transformation when fitting the bi-Gaussian or Gaussian mixture model in an EIC.
+#' @param align_mz_tol The user can provide the m/z tolerance level for peak alignment to override the program's selection. 
 #'  This value is expressed as the percentage of the m/z value. This value, multiplied by the m/z value, becomes the cutoff level.
-#' @param align.rt.tol The user can provide the elution time tolerance level to override the program's selection. This value 
+#' @param align_rt_tol The user can provide the elution time tolerance level to override the program's selection. This value 
 #'  is in the same unit as the elution time, normaly seconds.
-#' @param max.align.mz.diff As the m/z tolerance in alignment is expressed in relative terms (ppm), it may not be suitable 
+#' @param max_align_mz_diff As the m/z tolerance in alignment is expressed in relative terms (ppm), it may not be suitable 
 #'  when the m/z range is wide. This parameter limits the tolerance in absolute terms. It mostly influences feature matching 
 #'  in higher m/z range.
-#' @param pre.process Logical. If true, the program will not perform time correction and alignment. It will only generate peak tables 
+#' @param pre_process Logical. If true, the program will not perform time correction and alignment. It will only generate peak tables 
 #'  for each spectra and save the files. It allows manually dividing the task to multiple machines.
-#' @param recover.mz.range A parameter of the recover.weaker() function. The m/z around the feature m/z to search for observations. 
+#' @param recover_mz_range A parameter of the recover.weaker() function. The m/z around the feature m/z to search for observations. 
 #'  The default value is NA, in which case 1.5 times the m/z tolerance in the aligned object will be used.
-#' @param recover.rt.range A parameter of the recover.weaker() function. The retention time around the feature retention time to 
+#' @param recover_rt_range A parameter of the recover.weaker() function. The retention time around the feature retention time to 
 #'  search for observations. The default value is NA, in which case 0.5 times the retention time tolerance in the aligned 
 #'  object will be used.
-#' @param use.observed.range A parameter of the recover.weaker() function. If the value is TRUE, the actual range of the observed 
+#' @param use_observed_range A parameter of the recover.weaker() function. If the value is TRUE, the actual range of the observed 
 #'  locations of the feature in all the spectra will be used.
-#' @param match.tol.ppm The ppm tolerance to match identified features to known metabolites/features.
-#' @param new.feature.min.count The number of profiles a new feature must be present for it to be added to the database.
-#' @param recover.min.count The minimum time point count for a series of point in the EIC for it to be considered a true feature.
-#' @param intensity.weighted Whether to use intensity to weight mass density estimation.
-#' @param BIC.factor the factor that is multiplied on the number of parameters to modify the BIC criterion. If larger than 1, 
+#' @param match_tol_ppm The ppm tolerance to match identified features to known metabolites/features.
+#' @param new_feature_min_count The number of profiles a new feature must be present for it to be added to the database.
+#' @param recover_min_count The minimum time point count for a series of point in the EIC for it to be considered a true feature.
+#' @param intensity_weighted Whether to use intensity to weight mass density estimation.
+#' @param BIC_factor the factor that is multiplied on the number of parameters to modify the BIC criterion. If larger than 1, 
 #'  models with more peaks are penalized more.
 #' @return A list is returned.
 #' \itemize{
-#'   \item batchwise.results - A list. Each item in the list is the product of semi.sup() from a single batch.
-#'   \item final.ftrs - Feature table. This is the end product of the function.
+#'   \item batchwise_features - A list. Each item in the list is the product of hybrid() from a single batch.
+#'   \item known_table - Known table augmented with newly detected features.
+#'   \item aligned_features - Pseudo table of aligned features across batches used for aligning and recovering final features.
+#'   \item final_features - Feature table. This is the end product of the function.
 #' }
 #' @export
+#' 
 two.step.hybrid <- function(filenames,
                             metadata,
                             work_dir,
-                            min.within.batch.prop.detect = 0.1,
-                            min.within.batch.prop.report = 0.5,
-                            min.batch.prop = 0.5,
-                            batch.align.mz.tol = 1e-5,
-                            batch.align.rt.tol = 50,
-                            known.table = NA,
+                            min_within_batch_prop_detect = 0.1,
+                            min_within_batch_prop_report = 0.5,
+                            min_batch_prop = 0.5,
+                            min_occurrence = 2,
+                            batch_align_mz_tol = 1e-5,
+                            batch_align_rt_tol = 50,
+                            known_table = NA,
                             cluster = 4,
-                            min.pres = 0.5,
-                            min.run = 12,
-                            mz.tol = 1e-5,
-                            baseline.correct.noise.percentile = 0.05,
-                            shape.model = "bi-Gaussian",
-                            baseline.correct = 0,
-                            peak.estim.method = "moment",
-                            min.bw = NA,
-                            max.bw = NA,
-                            sd.cut = c(0.1, 100),
-                            sigma.ratio.lim = c(0.05, 20),
-                            component.eliminate = 0.01,
-                            moment.power = 2,
-                            align.mz.tol = NA,
-                            align.rt.tol = NA,
-                            max.align.mz.diff = 0.01,
-                            pre.process = FALSE,
-                            recover.mz.range = NA,
-                            recover.rt.range = NA,
-                            use.observed.range = TRUE,
-                            match.tol.ppm = NA,
-                            new.feature.min.count = 2,
-                            recover.min.count = 3,
-                            intensity.weighted = FALSE,
-                            BIC.factor = 2) {
+                            min_pres = 0.5,
+                            min_run = 12,
+                            mz_tol = 1e-5,
+                            mz_tol_relative = NA,
+                            rt_tol_relative = NA,
+                            baseline_correct_noise_percentile = 0.05,
+                            shape_model = "bi-Gaussian",
+                            baseline_correct = 0,
+                            peak_estim_method = "moment",
+                            min_bw = NA,
+                            max_bw = NA,
+                            sd_cut = c(0.1, 100),
+                            sigma_ratio_lim = c(0.05, 20),
+                            component_eliminate = 0.01,
+                            moment_power = 2,
+                            align_mz_tol = NA,
+                            align_rt_tol = NA,
+                            max_align_mz_diff = 0.01,
+                            pre_process = FALSE,
+                            recover_mz_range = NA,
+                            recover_rt_range = NA,
+                            use_observed_range = TRUE,
+                            match_tol_ppm = NA,
+                            new_feature_min_count = 2,
+                            recover_min_count = 3,
+                            intensity_weighted = FALSE,
+                            BIC_factor = 2,
+                            do_plot = FALSE,
+                            grouping_threshold = Inf) {
+
   filenames_batchwise <- bind_batch_label_column(filenames, metadata)
   batches_idx <- unique(metadata$batch)
   batchwise <- new("list")
@@ -667,110 +641,113 @@ two.step.hybrid <- function(filenames,
 
   for (batch.i in batches_idx) {
     files_batch <- dplyr::filter(filenames_batchwise, batch == batch.i)$filename
-    message("* processing ", length(files_batch), " samples from batch ", batch.i)
-
-    features <- semi.sup(
-      files = files_batch,
-      folder = work_dir,
-      n.nodes = cluster,
-      known.table = known.table,
-      sd.cut = sd.cut,
-      sigma.ratio.lim = sigma.ratio.lim,
-      component.eliminate = component.eliminate,
-      moment.power = moment.power,
-      min.pres = min.pres,
-      min.run = min.run,
-      min.exp = ceiling(min.within.batch.prop.detect * length(files_batch)),
-      mz.tol = mz.tol,
-      baseline.correct.noise.percentile = baseline.correct.noise.percentile,
-      baseline.correct = baseline.correct,
-      align.mz.tol = align.mz.tol,
-      align.rt.tol = align.rt.tol,
-      max.align.mz.diff = max.align.mz.diff,
-      recover.mz.range = recover.mz.range,
-      recover.rt.range = recover.rt.range,
-      use.observed.range = use.observed.range,
-      shape.model = shape.model,
-      new.feature.min.count = new.feature.min.count,
-      recover.min.count = recover.min.count,
-      sample_names = sample_names
+    samples_in_batch <- get_sample_name(files_batch)
+    message("* processing ", length(files_batch), " samples from batch ", batch.i, ":\n", 
+    paste(samples_in_batch, collapse = "\n"))
+    
+    features <- hybrid(
+      filenames = files_batch,
+      known_table = known_table,
+      min_occurrence = min_occurrence,
+      min_pres = min_pres,
+      min_run = min_run,
+      max_run = Inf,
+      mz_tol = mz_tol,
+      baseline_correct = baseline_correct,
+      baseline_correct_noise_percentile = baseline_correct_noise_percentile,
+      shape_model = shape_model,
+      BIC_factor = BIC_factor,
+      peak_estim_method = peak_estim_method,
+      bandwidth = 0.5,
+      min_bandwidth = min_bw,
+      max_bandwidth = max_bw,
+      sd_cut = sd_cut,
+      sigma_ratio_lim = sigma_ratio_lim,
+      component_eliminate =  component_eliminate,
+      moment_power =  moment_power,
+      mz_tol_relative = mz_tol_relative,
+      rt_tol_relative = rt_tol_relative,
+      mz_tol_absolute = 0.01,
+      match_tol_ppm = match_tol_ppm,
+      new_feature_min_count = new_feature_min_count,
+      recover_mz_range = recover_mz_range,
+      recover_rt_range = recover_rt_range,
+      use_observed_range = use_observed_range,
+      recover_min_count = recover_min_count,
+      intensity_weighted = intensity_weighted,
+      do_plot = do_plot,
+      cluster = cluster,
+      grouping_threshold = grouping_threshold
     )
-
-    features$final.ftrs <- features$final.ftrs[order(features$final.ftrs[, 1], features$final.ftrs[, 2]), ]
-    features$final.times <- features$final.times[order(features$final.times[, 1], features$final.times[, 2]), ]
-
     batchwise[[batch.i]] <- features
   }
-
-  batchwise <- semisup_to_hybrid_adapter(batchwise, batches_idx)
 
   step_one_features <- list()
   for (batch_id in batches_idx) {
     step_one_features[[batch_id]] <- compute_intensity_medians(
       batchwise[[batch_id]]$recovered_feature_sample_table
-    ) %>%
-      dplyr::select(-c("mz_min", "mz_max"))
+    )
   }
 
   cluster <- parallel::makeCluster(cluster)
   doParallel::registerDoParallel(cluster)
-  snow::clusterEvalQ(cluster, library(recetox.aplcms))
+  register_functions_to_cluster(cluster)
 
-  extracted_features <- list()
+  pseudo_features <- list()
   for (batch_id in batches_idx) {
-    extracted <- batchwise[[batch_id]]$recovered_feature_sample_table
-    extracted <- long_to_wide_feature_table(extracted)
-    intensities <- dplyr::select(extracted, contains("_intensity"))
-    median_intensity <- apply(intensities, 1, median)
-    extracted <- dplyr::select(extracted, mz, rt)
-    extracted[, 3:4] <- NA
-    colnames(extracted)[3:4] <- c("mz_min", "mz_max")
-    extracted[, 5] <- median_intensity
-    colnames(extracted)[5] <- "median_intensity"
-    extracted_features[[batch_id]] <- extracted
+    # Extract sample names
+    files_batch <- dplyr::filter(filenames_batchwise, batch == batch_id)$filename
+    samples_in_batch <- get_sample_name(files_batch)
+    
+    # Extract metadata and intensities
+    batchwise_intensities <- batchwise[[batch_id]]$recovered_aligned_features$intensity
+    batchwise_metadata <- batchwise[[batch_id]]$recovered_aligned_features$metadata[,c(1:14)]   
+
+    # Merge metadata and intesities
+    pseudo_features[[batch_id]] <- dplyr::full_join(
+        batchwise_metadata, 
+        batchwise_intensities, 
+        by = 'id') |> 
+      mutate(area = apply(across(all_of(samples_in_batch)), 1, median)) |>
+      dplyr::rename(sd1 = "sd1_mean", sd2 = "sd2_mean")
   }
 
-  message("* aligning time")
-  corrected <- adjust.time(extracted_features,
-    mz_tol_relative = batch.align.mz.tol,
-    rt_tol_relative = batch.align.rt.tol,
-    mz_max_diff = 10 * mz.tol,
-    mz_tol_absolute = max.align.mz.diff,
-    rt_colname = "rt"
-  )
-
-  message("* aligning features")
+  message("* computing clusters")
   sample_names = paste0("batch_", batches_idx)
-  
-  res <- compute_clusters(
-      corrected,
-      batch.align.mz.tol,
-      batch.align.rt.tol,
-      10 * mz_tol,
-      max.align.mz.diff,
-      FALSE,
-      sample_names
-  )
-  
-  aligned_features <- create_aligned_feature_table(
-      dplyr::bind_rows(res$feature_tables),
-      ceiling(min.batch.prop * length(batches_idx)),
-      sample_names,
-      res$rt_tol_relative,
-      res$mz_tol_relative
-  )
-  
-  aligned_features$mz_tol_relative <- res$mz_tol_relative
-  aligned_features$rt_tol_relative <- res$rt_tol_relative
-  
-  aligned <- list(
-      mz_tolerance = as.numeric(aligned_features$mz_tol_relative),
-      rt_tolerance = as.numeric(aligned_features$rt_tol_relative),
-      rt_crosstab = as_feature_crosstab(sample_names, aligned_features$metadata, aligned_features$rt),
-      int_crosstab = as_feature_crosstab(sample_names, aligned_features$metadata, aligned_features$intensity)
+  clustered <- compute_clusters(
+    feature_tables = pseudo_features,
+    mz_tol_relative = batch_align_mz_tol,
+    mz_tol_absolute = max_align_mz_diff,
+    mz_max_diff = 10 * mz_tol,
+    rt_tol_relative = 10,
+    do.plot = FALSE,
+    sample_names = sample_names
   )
 
-  aligned_wide <- as_wide_aligned_table(aligned)
+  message("* aligning time")
+  corrected <- adjust.time(clustered$feature_tables, clustered$rt_tol_relative)  
+
+  message("* second time computing clusters")
+  res <- compute_clusters(
+      feature_tables = corrected,
+      mz_tol_relative = batch_align_mz_tol,
+      mz_tol_absolute = max_align_mz_diff,
+      mz_max_diff = 10 * mz_tol,
+      rt_tol_relative = batch_align_rt_tol,
+      do.plot = FALSE,
+      sample_names = sample_names
+  )
+  
+  message("* aligning features")
+  aligned_features <- create_aligned_feature_table(
+      features_table = dplyr::bind_rows(res$feature_tables),
+      min_occurrence = ceiling(min_batch_prop * length(batches_idx)),
+      sample_names = sample_names,
+      rt_tol_relative = res$rt_tol_relative,
+      mz_tol_relative = res$mz_tol_relative
+  )
+
+  aligned_wide <- as_wide_aligned_table(aligned_features)
 
   message("* recovering features across batches")
   recovered <- feature_recovery(
@@ -781,38 +758,26 @@ two.step.hybrid <- function(filenames,
     corrected = corrected,
     aligned = aligned_wide,
     batches_idx = batches_idx,
-    mz.tol = mz.tol,
-    batch.align.mz.tol = batch.align.mz.tol,
-    batch.align.rt.tol = batch.align.rt.tol,
-    recover.mz.range = recover.mz.range,
-    recover.rt.range = recover.rt.range,
-    use.observed.range = use.observed.range,
-    min.bw = min.bw,
-    max.bw = max.bw,
-    recover.min.count = recover.min.count
+    mz_tol = mz_tol,
+    batch_align_mz_tol = batch_align_mz_tol,
+    batch_align_rt_tol = batch_align_rt_tol,
+    recover_mz_range = recover_mz_range,
+    recover_rt_range = recover_rt_range,
+    use_observed_range = use_observed_range,
+    min_bw = min_bw,
+    max_bw = max_bw,
+    recover_min_count = recover_min_count,
+    min_occurrence = min_occurrence,
+    batch_names = sample_names 
   )
 
   snow::stopCluster(cluster)
 
-  recovered_filtered <- filter_features_by_presence(
-    feature_table = recovered,
-    metadata = metadata,
-    batches_idx = batches_idx,
-    within_batch_threshold = min.within.batch.prop.report,
-    across_batch_threshold = min.batch.prop
-  )
-
-  recovered_filtered <- dplyr::arrange(recovered_filtered, mz, rt)
-  recovered_features <- wide_to_long_feature_table(recovered_filtered)
-
   features <- new("list")
   features$batchwise_features <- batchwise
   features$known_table <- merge_known_tables(batchwise, batches_idx)
-  features$aligned_features <- as_feature_sample_table(
-    rt_crosstab = aligned$rt_crosstab,
-    int_crosstab = aligned$int_crosstab
-  )
-  features$corrected_features <- corrected
-  features$final_features <- recovered_features
+  features$aligned_features <- aligned_features
+  features$final_features <- recovered   
   return(features)
+
 }

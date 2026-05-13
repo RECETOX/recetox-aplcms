@@ -55,6 +55,7 @@ patrick::with_parameters_test_that("basic hybrid test", {
   expect_equal(actual, expected, tolerance = 1e-06)
 },
 patrick::cases(
+  # Ignore for now, too simple for the calculation
   mbr = list(
     files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml"),
     ci_skip = TRUE,

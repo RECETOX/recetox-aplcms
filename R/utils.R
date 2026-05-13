@@ -8,6 +8,7 @@ register_functions_to_cluster <- function(cluster) {
         'add_feature_ids',
         'adjust.time',
         'aggregate_by_rt',
+        'align_recovered_batch_tables',
         'as_feature_crosstab',
         'as_feature_sample_table',
         'as_wide_aligned_table',
@@ -62,9 +63,11 @@ register_functions_to_cluster <- function(cluster) {
         'create_aligned_feature_table',
         'create_features_from_cluster',
         'create_intensity_row',
+        'create_intensity_row_tsh',
         'create_metadata',
         'create_output',
         'create_rt_row',
+        'create_rt_row_tsh',
         'draw_plot',
         'draw_rt_correction_plot',
         'draw_rt_normal_peaks',
@@ -74,13 +77,11 @@ register_functions_to_cluster <- function(cluster) {
         'feature_recovery',
         'fill_missing_values',
         'filter_based_on_density',
-        'filter_features_by_presence',
         'find.match',
         'find.tol.time',
         'find.turn.point',
         'find_local_maxima',
         'find_min_position',
-        'find_mz_match',
         'find_mz_tolerance',
         'find_optima',
         'get_custom_rt_tol',
@@ -95,6 +96,10 @@ register_functions_to_cluster <- function(cluster) {
         'increment_counter',
         'interpol.area',
         'l2normalize',
+        'compute_peaks_and_valleys',
+        'as_feature_sample_table',
+        'check_files',
+        'get_sample_name',
         'label_val_to_keep',
         'load.lcms',
         'load.lcms.raw',
@@ -130,7 +135,6 @@ register_functions_to_cluster <- function(cluster) {
         'rm.ridge',
         'run_filter',
         'semi.sup',
-        'semisup_to_hybrid_adapter',
         'solve_a',
         'solve_sigma',
         'sort_data',
@@ -150,6 +154,7 @@ register_functions_to_cluster <- function(cluster) {
 #' Concatenate multiple feature lists and add the sample id (origin of feature) as additional column.
 #' 
 #' @param features list List of tibbles containing extracted feature tables.
+#' @export
 #' @export
 concatenate_feature_tables <- function(features, sample_names) {
     for (i in seq_along(features)) {
@@ -224,6 +229,7 @@ get_num_workers <- function() {
     return(num_workers)
 }
 
+#' @export
 #' @export
 read_parquet_files <- function(filename, folder, pattern) {
   testdata <- file.path("..", "testdata")
