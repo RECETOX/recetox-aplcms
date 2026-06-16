@@ -47,3 +47,36 @@ test_that('read_arrow can read file with metadata', {
   actual <- read_arrow(local_arrow(expected))$metadata
   expect_equal(actual, expected)
 })
+
+patrick::with_parameters_test_that(
+  "read_run_id get's the run id",
+  {
+    expect_equal(read_run_id(filepath), expected)
+  },
+  patrick::cases(
+    qc_no_dil_milliq = list(
+      filepath = file.path("..", "testdata", "input","8_qc_no_dil_milliq.mzml"),
+      expected = '8_qc_no_dil_milliq'
+    ),
+    mbr0 = list(
+      filepath = file.path("..", "testdata", "input", 'mbr_test0.mzml'),
+      expected = '_x0032_016_Jan_12_QE2_47'
+    ),
+    rawfile = list(
+      filepath = file.path("..", "testdata", "input","8_qc_no_dil_milliq.raw"),
+      expected = '8_qc_no_dil_milliq'
+    )
+  )
+)
+
+test_that('write_tibble writes all attributes', {
+  t <- tibble::as.tibble(data_frame)
+  attr(t, 'run_id') <- 'peter'
+
+  outpath <- file.path(tempdir(), "output.parquet")
+
+  write_tibble(t, outpath)
+  actual <- read_arrow(outpath)
+
+  expect_equal(actual$schema$metadata$run_id, attr(t, 'run_id'))
+})

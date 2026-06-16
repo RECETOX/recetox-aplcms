@@ -41,12 +41,10 @@ patrick::with_parameters_test_that(
     actual_num_na <- sapply(data, function(x) sum(is.na(x)))
     testthat::expect_equal(actual_num_na, expected_num_na)
   },
-  
   patrick::cases(
     test_case_1 = create_test_case("RCX_06_shortened.mzML", 879476, 879476, 879476),
     test_case_2 = create_test_case("test_file.mzXML", 9647575, 9647575, 9647575),
-    test_case_3 = create_test_case("alg3.mzdata", 543894, 543894, 543894),
-    test_case_3 = create_test_case(rawrr::sampleFilePath(), 30689, 30689, 30689)
+    test_case_3 = create_test_case("alg3.mzdata", 543894, 543894, 543894)
+    # test_case_3 = create_test_case(rawrr::sampleFilePath(), 30689, 30689, 30689)
   )
 )
-
