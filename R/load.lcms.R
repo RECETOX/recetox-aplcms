@@ -23,7 +23,9 @@ load.lcms <- function(filename) {
   }
 
   mz_conn <- mzR::openMSfile(filename = filename)
-  b <- mzR::header(mz_conn)$retentionTime
+  header <- mzR::header(mz_conn)
+  
+  b <- header$retentionTime
 
   masses <- NULL
   intensi <- NULL
@@ -64,6 +66,7 @@ load.lcms <- function(filename) {
   mzR::close(mz_conn)
 
   features <- tibble::tibble(mz = masses, rt = labels, intensity = intensi)
+  attr(features, 'run_id') <- read_run_id(filename)
   return(features)
 }
 
@@ -128,6 +131,6 @@ load.lcms.raw <- function(filename, chunk_size = 100) {
   })
 
   features <- dplyr::bind_rows(results)
-
+  attr(features, 'run_id') <- read_run_id(filename)
   return(features)
 }
