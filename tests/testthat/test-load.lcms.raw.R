@@ -21,7 +21,7 @@ testthat::test_that("load.lcms.raw reads a raw file correctly", {
 
   # Assert: Verify the function output matches expected results
   testthat::expect_equal(nrow(actual), 30689)
-  testthat::expect_equal(ncol(actual), 3)
+  testthat::expect_equal(ncol(actual), 4)
   testthat::expect_equal(length(actual$mz), 30689)
   testthat::expect_equal(length(actual$rt), 30689)
   testthat::expect_equal(length(actual$intensity), 30689)
