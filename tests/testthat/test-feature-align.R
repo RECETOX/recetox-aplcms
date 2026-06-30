@@ -314,23 +314,27 @@ patrick::with_parameters_test_that(
     corrected_features <- read_parquet_files(files, "adjusted", ".parquet")
 
     res <- compute_clusters(
-      corrected_features,
-      mz_tol_relative,
-      mz_tol_absolute,
-      10 * mz_tol,
-      rt_tol_relative,
-      do.plot,
-      files
+      feature_tables = corrected_features,
+      mz_tol_relative = mz_tol_relative,
+      mz_tol_absolute = mz_tol_absolute,
+      mz_max_diff = 10 * mz_tol,
+      rt_tol_relative = rt_tol_relative,
+      do.plot = do.plot,
+      sample_names = get_sample_names(corrected_features)
     )
+    browser()
 
     aligned_actual <- create_aligned_feature_table(
-      dplyr::bind_rows(res$feature_tables),
-      min_occurrence,
-      files,
-      res$rt_tol_relative,
-      res$mz_tol_relative,
+      features_table = dplyr::bind_rows(res$feature_tables),
+      min_occurrence= min_occurrence,
+      sample_names = get_sample_names(corrected_features),
+      mz_tol_relative = res$mz_tol_relative,
+      rt_tol_relative = res$rt_tol_relative,
       cluster = get_num_workers()
     )
+    browser()
+
+    # update_expected(aligned_actual)
 
     aligned_expected <- load_aligned_features(
       file.path(testdata, "aligned", "metadata_table.parquet"),
@@ -362,13 +366,15 @@ patrick::with_parameters_test_that(
     corrected_features <- read_parquet_files(files, "clusters", "_adjusted_clusters.parquet")
 
     aligned_actual <- create_aligned_feature_table(
-      dplyr::bind_rows(corrected_features),
-      min_occurrence,
-      files,
-      rt_tol_relative,
-      mz_tol_relative,
+      features_table = dplyr::bind_rows(corrected_features),
+      min_occurrence= min_occurrence,
+      sample_names = get_sample_names(corrected_features),
+      mz_tol_relative = mz_tol_relative,
+      rt_tol_relative = rt_tol_relative,
       cluster = get_num_workers()
     )
+
+    # update_expected(aligned_actual)
 
     aligned_expected <- load_aligned_features(
       file.path(testdata, "aligned", "metadata_table.parquet"),
