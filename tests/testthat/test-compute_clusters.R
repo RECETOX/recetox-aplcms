@@ -19,9 +19,10 @@ patrick::with_parameters_test_that(
       mz_max_diff = mz_max_diff,
       mz_tol_absolute = mz_tol_absolute,
       do.plot = FALSE,
-      sample_names = files
+      sample_names = get_sample_names(extracted)
     )
-
+    
+    # update_expected(input, files, actual)
     expected <- read_parquet_files(files, "clusters", paste0("_", input, "_clusters.parquet"))
 
     for(i in seq_along(files)) {
@@ -109,11 +110,11 @@ patrick::with_parameters_test_that(
       mz_tol_absolute = mz_tol_absolute,
       sd_ratio_tol_relative = NA,
       do.plot = FALSE,
-      sample_names = files
+      sample_names = get_sample_names(extracted)
     )
 
     result <- lapply(actual$feature_tables, summary)
-
+    # saveRDS(result, file.path(testdata, "clusters", paste0("clusters_sd_", input, ".Rds")))
     expected <- readRDS(file.path(testdata, "clusters", paste0("clusters_sd_", input, ".Rds")))
     expect_equal(result, expected, tolerance = 0.02)
   },
