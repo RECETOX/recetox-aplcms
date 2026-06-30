@@ -794,6 +794,8 @@ prof.to.features <- function(profile,
                              BIC_factor,
                              do.plot) {
   validate_model_method_input(shape_model, peak_estim_method)
+  
+  sample_id <- profile$sample_id[1] # saving sample_id for later
 
   profile <- preprocess_profile(profile)  # returns dframe with columns: mz, rt, intensity, group_number
 
@@ -858,6 +860,8 @@ prof.to.features <- function(profile,
   if (do.plot) {
     plot_peak_summary(feature_groups, peak_parameters)
   }
-
-  return(tibble::as_tibble(peak_parameters))
+  
+  peak_parameters <- tibble::as_tibble(peak_parameters) |>  
+                     dplyr::mutate(sample_id = sample_id) 
+  return(peak_parameters)
 }
