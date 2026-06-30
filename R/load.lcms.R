@@ -64,8 +64,8 @@ load.lcms <- function(filename) {
   }
 
   mzR::close(mz_conn)
-
-  features <- tibble::tibble(mz = masses, rt = labels, intensity = intensi)
+  features <- tibble::tibble(mz = masses, rt = labels, intensity = intensi) |>
+              dplyr::mutate(sample_id = read_run_id(filename))
   attr(features, 'run_id') <- read_run_id(filename)
   return(features)
 }
@@ -130,7 +130,8 @@ load.lcms.raw <- function(filename, chunk_size = 100) {
     process_chunk(spectra, idx$StartTime[start:end])
   })
 
-  features <- dplyr::bind_rows(results)
+  features <- dplyr::bind_rows(results) |>
+              dplyr::mutate(sample_id = read_run_id(filename))
   attr(features, 'run_id') <- read_run_id(filename)
   return(features)
 }
