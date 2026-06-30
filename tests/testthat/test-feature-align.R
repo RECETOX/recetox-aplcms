@@ -322,7 +322,6 @@ patrick::with_parameters_test_that(
       do.plot = do.plot,
       sample_names = get_sample_names(corrected_features)
     )
-    browser()
 
     aligned_actual <- create_aligned_feature_table(
       features_table = dplyr::bind_rows(res$feature_tables),
@@ -332,7 +331,6 @@ patrick::with_parameters_test_that(
       rt_tol_relative = res$rt_tol_relative,
       cluster = get_num_workers()
     )
-    browser()
 
     # update_expected(aligned_actual)
 

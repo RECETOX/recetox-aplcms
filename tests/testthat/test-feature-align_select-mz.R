@@ -19,7 +19,6 @@ test_that("create_features_from_cluster() function works", {
   rt_tol_relative <- 2.17918873407775
 
   # update_input(input_path, sample_names)
-  browser()
   actual <- create_features_from_cluster(sample,
                       mz_tol_relative,
                       rt_tol_relative,
