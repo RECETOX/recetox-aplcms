@@ -7,6 +7,7 @@ patrick::with_parameters_test_that(
     actual <- compute_template(extracted)
 
     expected_path <- file.path(testdata, "template", "RCX_shortened.parquet")
+    # arrow::write_parquet(actual, expected_path)
     expected <- arrow::read_parquet(expected_path)
     
     expect_equal(actual, expected)
