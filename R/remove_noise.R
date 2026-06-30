@@ -125,5 +125,6 @@ remove_noise <- function(filename,
     )
   }
 
+  new.prof <- new.prof |> dplyr::mutate(sample_id = raw.data$sample_id[1])
   return(new.prof)
 }
