@@ -26,7 +26,7 @@ patrick::with_parameters_test_that(
     recovered <- lapply(seq_along(ms_files), function(i) {
       recover.weaker(
         filename = ms_files[[i]],
-        sample_name = files[i],
+        sample_name = extracted[[i]]$sample_id,
         extracted_features = extracted[[i]],
         adjusted_features = adjusted[[i]],
         metadata_table = aligned$metadata,
