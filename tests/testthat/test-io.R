@@ -70,7 +70,7 @@ patrick::with_parameters_test_that(
 )
 
 test_that('write_tibble writes all attributes', {
-  t <- tibble::as.tibble(data_frame)
+  t <- tibble::as_tibble(data_frame)
   attr(t, 'run_id') <- 'peter'
 
   outpath <- file.path(tempdir(), "output.parquet")
