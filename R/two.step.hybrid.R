@@ -71,10 +71,12 @@ recover_weaker_signals <- function(
   snow::clusterExport(cluster, c('recover.weaker'))
   snow::clusterEvalQ(cluster, library("splines"))
   
+  sample_names <- get_sample_names(corrected_features)
+
   recovered <- lapply(seq_along(filenames), function(i) {
     recover.weaker(
-      filename = filenames[[i]],
-      sample_name = get_sample_name(filenames[i]),
+      filename = filenames[i],
+      sample_name = sample_names[i],
       metadata_table = aligned_int_crosstab,
       intensity_table = aligned_int_crosstab,
       rt_table = aligned_rt_crosstab,
@@ -94,7 +96,6 @@ recover_weaker_signals <- function(
     )
   })   
 
-  sample_names <- get_sample_name(filenames)
   adjusted_features <- lapply(recovered, function(x) x$adjusted_features)
 
   res <- compute_clusters(
@@ -637,7 +638,7 @@ two.step.hybrid <- function(filenames,
   batchwise <- new("list")
   message("* processing ", length(batches_idx), " batches separately")
   
-  sample_names <- get_sample_name(filenames)
+
 
   for (batch.i in batches_idx) {
     files_batch <- dplyr::filter(filenames_batchwise, batch == batch.i)$filename
@@ -694,14 +695,13 @@ two.step.hybrid <- function(filenames,
   register_functions_to_cluster(cluster)
 
   pseudo_features <- list()
-  for (batch_id in batches_idx) {
-    # Extract sample names
-    files_batch <- dplyr::filter(filenames_batchwise, batch == batch_id)$filename
-    samples_in_batch <- get_sample_name(files_batch)
-    
+  for (batch_id in batches_idx) {    
     # Extract metadata and intensities
     batchwise_intensities <- batchwise[[batch_id]]$recovered_aligned_features$intensity
     batchwise_metadata <- batchwise[[batch_id]]$recovered_aligned_features$metadata[,c(1:14)]   
+
+     # Extract sample names
+    samples_in_batch <- colnames(batchwise_intensities)[-1]
 
     # Merge metadata and intesities
     pseudo_features[[batch_id]] <- dplyr::full_join(
