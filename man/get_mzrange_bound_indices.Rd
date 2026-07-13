@@ -22,3 +22,4 @@ pair Index range (start, end).
 Generate indices of valley points which are within the mz tolerance range around the aligned feature mass. If the aligned feature mass is smaller than the second valley point, the first two valley points are returned as indices.
 Otherwise, the function checks which valley points are within the mz tolerance range and also includes the closest valley point above and below the aligned feature mass.
 }
+\keyword{internal}

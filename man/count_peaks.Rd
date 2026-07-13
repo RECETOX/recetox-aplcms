@@ -17,3 +17,4 @@ vector Numbers of peaks within each region defined by a peak and the two valley 
 \description{
 For each peak in ROI, count the peaks between the valley points.
 }
+\keyword{internal}

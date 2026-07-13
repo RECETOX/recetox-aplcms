@@ -148,6 +148,7 @@ filter_based_on_density <- function(sample, turns, index, i) {
 #' @param min_occurrence A minimal number of profiles a feature has to be present in.
 #' @param sample_names A list of sample names.
 #' @return A list containing 3 tibbles: metadata, intensities and RTs.
+#' @keywords internal
 #' @export
 create_features_from_cluster <- function(features,
                                          mz_tol_relative,
@@ -188,6 +189,7 @@ create_features_from_cluster <- function(features,
 
 #' Combines the output (i.e. metadata, intensity and RT) from different clusters to one respective tibble.
 #' @return Tibbles combining the output (metadata, intensity and RT respectively) from different clusters.
+#' @keywords internal
 #' @export
 comb <- function(x, ...) {
   mapply(plyr::rbind.fill, x, ..., SIMPLIFY = FALSE)
@@ -197,6 +199,7 @@ comb <- function(x, ...) {
 #' @param x A dataframe
 #' @param sample_names List of sample names.
 #' @return Cleaned tibble.
+#' @keywords internal
 #' @export
 clean_data_matrix <- function(x, sample_names) {
   x <- x %>%
@@ -210,6 +213,7 @@ clean_data_matrix <- function(x, sample_names) {
 #' @param x A dataframe
 #' @return The same dataframe but with an additional `id` column
 #' in first place which contains the rownames.
+#' @keywords internal
 #' @export
 add_feature_ids <- function(x) {
   x$id <- as.integer(rownames(x))

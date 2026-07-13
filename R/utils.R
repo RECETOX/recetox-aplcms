@@ -155,7 +155,7 @@ register_functions_to_cluster <- function(cluster) {
 #' Concatenate multiple feature lists and add the sample id (origin of feature) as additional column.
 #'
 #' @param features list List of tibbles containing extracted feature tables.
-#' @export
+#' @keywords internal
 #' @export
 concatenate_feature_tables <- function(features, sample_names) {
   for (i in seq_along(features)) {
@@ -168,24 +168,12 @@ concatenate_feature_tables <- function(features, sample_names) {
   return(merged)
 }
 
-#' @export
-load_aligned_features <- function(metadata_file, intensities_file, rt_file) {
-  metadata <- arrow::read_parquet(metadata_file)
-  intensities <- arrow::read_parquet(intensities_file)
-  rt <- arrow::read_parquet(rt_file)
-
-  result <- list()
-  result$metadata <- as_tibble(metadata)
-  result$intensity <- as_tibble(intensities)
-  result$rt <- as_tibble(rt)
-  return(result)
-}
-
 #' Calculate the span of a numeric vector.
 #' @description
 #' This function calculates the span (range) of a numeric vector, ignoring NA values.
 #' @param x A numeric vector.
 #' @return A numeric value representing the span of the vector.
+#' @keywords internal
 #' @export
 span <- function(x) {
   diff(range(x, na.rm = TRUE))
@@ -196,6 +184,7 @@ span <- function(x) {
 #' This function computes the standard deviation of m/z values for each group of features.
 #' @param feature_groups A list of data frames, where each data frame represents a group of features with m/z values.
 #' @return A numeric vector of standard deviations of m/z values for each feature group.
+#' @keywords internal
 #' @export
 compute_mz_sd <- function(feature_groups) {
   mz_sd <- c()
@@ -214,6 +203,7 @@ compute_mz_sd <- function(feature_groups) {
 #' @description
 #' This function determines the number of available worker cores, taking into account CRAN's limit on the number of cores.
 #' @return An integer representing the number of available worker cores.
+#' @keywords internal
 #' @export
 get_num_workers <- function() {
   # CRAN limits the number of cores available to packages to 2
@@ -230,18 +220,7 @@ get_num_workers <- function() {
   return(num_workers)
 }
 
-#' @export
-#' @export
-read_parquet_files <- function(filename, folder, pattern) {
-  testdata <- file.path("..", "testdata")
-
-  input <- lapply(filename, function(x) {
-    tibble::as_tibble(arrow::read_parquet(file.path(testdata, folder, paste0(x, pattern))))
-  })
-
-  return(input)
-}
-
+#' @keywords internal
 is_mzml <- function(filepath) {
   if (tools::file_ext(filepath) %in% c("mzml", "mzML")) {
     return(TRUE)
@@ -249,4 +228,5 @@ is_mzml <- function(filepath) {
   return(FALSE)
 }
 
+#' @keywords internal
 `%notin%` <- function(x, y) !(x %in% y)

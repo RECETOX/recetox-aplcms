@@ -109,6 +109,7 @@ solve_a <- function(x, t, a, sigma.1, sigma.2) {
 #' @param x A vector of numerical values (intensities).
 #' @param t A vector of numerical values (rt).
 #' @param a A vector of peak summits.
+#' @keywords internal
 #' @export
 prep_uv <- function(x, t, a) {
   # This function is a part of bigauss.esti.EM and is not covered by any of test-cases
@@ -212,6 +213,7 @@ bigauss.esti.EM <- function(t, x, max.iter = 50, epsilon = 0.005, do.plot = FALS
 #' Computes vector of cumulative sums on reversed input. Returns cumulative sum vector going from the sum of all elements to one.
 #' @param x float - vector of numerical values
 #' @return Returns a vector
+#' @keywords internal
 #' @export
 rev_cum_sum <- function(x) {
   x <- rev(x)

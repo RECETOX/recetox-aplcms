@@ -16,3 +16,4 @@ in first place which contains the rownames.
 \description{
 Add `id` column to a dataframe
 }
+\keyword{internal}

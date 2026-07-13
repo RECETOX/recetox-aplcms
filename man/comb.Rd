@@ -12,3 +12,4 @@ Tibbles combining the output (metadata, intensity and RT respectively) from diff
 \description{
 Combines the output (i.e. metadata, intensity and RT) from different clusters to one respective tibble.
 }
+\keyword{internal}

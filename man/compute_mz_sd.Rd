@@ -15,3 +15,4 @@ A numeric vector of standard deviations of m/z values for each feature group.
 \description{
 This function computes the standard deviation of m/z values for each group of features.
 }
+\keyword{internal}

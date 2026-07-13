@@ -24,3 +24,4 @@ to_keep.
 \description{
 This function labels the indices of values kept to perform further calculations
 }
+\keyword{internal}

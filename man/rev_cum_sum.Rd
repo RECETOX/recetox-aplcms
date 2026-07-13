@@ -15,3 +15,4 @@ Returns a vector
 \description{
 Computes vector of cumulative sums on reversed input. Returns cumulative sum vector going from the sum of all elements to one.
 }
+\keyword{internal}

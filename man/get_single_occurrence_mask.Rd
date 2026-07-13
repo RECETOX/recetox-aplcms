@@ -16,3 +16,4 @@ vector Boolean vector which is the mask of values occuring only once.
 Uses the \link[base]{table} function to compute the occurrences and then
 checks which values only occur a single time.
 }
+\keyword{internal}

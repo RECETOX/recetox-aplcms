@@ -17,3 +17,4 @@ The function adds an extrapolated element in the end and a 0 element in the fron
 then computes the midpoints between#' neighbouring elements and then uses the `diff`
 function to compute the changes in rt between points.
 }
+\keyword{internal}

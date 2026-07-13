@@ -20,3 +20,4 @@ Indices of retention time values to use.
 Obtain retention time values which occur only once in both the original and the adjusted times.
 This is a custom version of the unique or intersection function with rounding etc.
 }
+\keyword{internal}

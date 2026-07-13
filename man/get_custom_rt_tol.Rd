@@ -23,3 +23,4 @@ Compute chromatographic tolerance for each feature. If `use_observed_range == TR
 the whole range of retention times for all peaks is used to compute the tolerance,
 otherwise `rt_range` is used for each feature.
 }
+\keyword{internal}

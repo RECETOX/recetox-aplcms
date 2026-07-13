@@ -17,3 +17,4 @@ The updated list of pointers.
 \description{
 This function increments the values of `prof.pointer`, `height.pointer`, and `curr.label` in the provided list of pointers.
 }
+\keyword{internal}

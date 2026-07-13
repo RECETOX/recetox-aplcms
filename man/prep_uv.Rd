@@ -17,3 +17,4 @@ prep_uv(x, t, a)
 This function prepares the parameters required for latter computation.
 u, v, and sum of x (original authors' comment).
 }
+\keyword{internal}

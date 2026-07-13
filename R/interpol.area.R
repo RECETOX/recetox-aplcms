@@ -7,6 +7,7 @@
 #' @param all.x all possible x(retention time) in the LCMS profile.
 #' @param all.w the "footprint" of each measured retention time, used as weight for the corresponding y.
 #' @return The area is returned.
+#' @keywords internal
 #' @export
 interpol.area <- function(x, y, all.x, all.w) {
     r<-range(x)

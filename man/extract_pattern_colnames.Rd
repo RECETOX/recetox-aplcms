@@ -17,3 +17,4 @@ A character vector of column names that match the specified pattern.
 \description{
 This function extracts the column names from a dataframe that contain a specified pattern.
 }
+\keyword{internal}

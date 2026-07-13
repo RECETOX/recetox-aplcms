@@ -191,6 +191,7 @@ wide_to_long_feature_table <- function(wide_table, sample_names) {
 #' @param dataframe A dataframe from which to extract column names.
 #' @param pattern A character string containing the pattern to match in the column names.
 #' @return A character vector of column names that match the specified pattern.
+#' @keywords internal
 #' @export
 extract_pattern_colnames <- function(dataframe, pattern) {
   dataframe <- dplyr::select(dataframe, contains(pattern))
@@ -321,6 +322,7 @@ compute_intensity_medians <- function(feature_table) {
 #' @param metadata A tibble containing sample_name and batch columns.
 #'
 #' @return A tibble with filename and batch columns.
+#' @keywords internal
 #' @export
 bind_batch_label_column <- function(filenames, metadata) {
   stopifnot(nrow(metadata) == length(filenames))
@@ -346,7 +348,6 @@ bind_batch_label_column <- function(filenames, metadata) {
 #'
 #' @return A list of aligned metadata, intensity and rt tibbles across batches.
 #' @export
-
 align_recovered_batch_tables <- function(recovered_tables, 
                                           batch_names,
                                           batch_align_mz_tol,

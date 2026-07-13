@@ -23,3 +23,4 @@ The lower bound is the mass of the valley the closest but smaller than peak
 and the upper bound is the mass of the valley the closest but higher than
 the peak.
 }
+\keyword{internal}

@@ -12,3 +12,4 @@ An integer representing the number of available worker cores.
 \description{
 This function determines the number of available worker cores, taking into account CRAN's limit on the number of cores.
 }
+\keyword{internal}

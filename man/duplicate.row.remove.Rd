@@ -19,3 +19,4 @@ Returns the same table with duplicate rows removed.
 Rows are considered as duplicate if the 1st, 2nd and 5th column are less than 1e-10 (tolerance) apart.
 Only a single row in this `range` is kept from a group.
 }
+\keyword{internal}

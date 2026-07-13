@@ -24,3 +24,4 @@ Returns a list object with the following objects in it:
 Estimate the parameters of a single Gaussian peak fitted to the data: 
 interpolated retention time, its standard deviation, and intensity values
 }
+\keyword{internal}

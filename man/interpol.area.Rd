@@ -21,3 +21,4 @@ The area is returned.
 \description{
 This is an internal function.
 }
+\keyword{internal}

@@ -29,3 +29,4 @@ A list containing 3 tibbles: metadata, intensities and RTs.
 \description{
 Group the mz and RT for particular cluster.
 }
+\keyword{internal}

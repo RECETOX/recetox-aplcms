@@ -43,6 +43,7 @@ predict_smoothed_rt <- function(min_run, times) {
 #' @param this_times The vector of retention time points for the current profile.
 #' @param times Retention times vector.
 #' @return to_keep.
+#' @keywords internal
 #' @export
 label_val_to_keep <- function(min_run, timeline, min_pres, this_times, times) {
   this_timeline <- timeline

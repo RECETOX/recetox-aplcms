@@ -55,6 +55,7 @@ compute_breaks <- function(mz_tol, masses, intensity_binned, intensity_weighted)
 #' @param pointers A list containing the pointers to be incremented.
 #' @param that.n An integer value to increment the `prof.pointer`.
 #' @return The updated list of pointers.
+#' @keywords internal
 #' @export
 increment_counter <- function(pointers, that.n){
   pointers$prof.pointer <- pointers$prof.pointer + that.n

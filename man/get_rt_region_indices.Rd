@@ -20,3 +20,4 @@ vector Indices which are within `rt_tol` from `target_time` or
 \description{
 Get indices where rt in `features` is within `rt_tol` of `target_time`.
 }
+\keyword{internal}

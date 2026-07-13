@@ -18,3 +18,4 @@ A tibble with filename and batch columns.
 Combines filename information with metadata by matching sample names, adding batch
 labels to each filename for batch-wise processing.
 }
+\keyword{internal}

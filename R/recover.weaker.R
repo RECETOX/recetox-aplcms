@@ -12,6 +12,7 @@ NULL
 #' Columns 1, 2 and 5 have to be of numeric type.
 #' @param tolerance Tolerance to use for numeric comparisons.
 #' @return Returns the same table with duplicate rows removed.
+#' @keywords internal
 #' @export
 duplicate.row.remove <- function(features, tolerance = 1e-10) {
   new.table <- features |> dplyr::arrange_at(c("mz", "rt", "area"))
@@ -41,6 +42,7 @@ duplicate.row.remove <- function(features, tolerance = 1e-10) {
 #' function to compute the changes in rt between points.
 #' @param times Retention time values.
 #' @return Differences between time values.
+#' @keywords internal
 #' @export
 compute_delta_rt <- function(times) {
   # add element which is 2x the last element - the second to last - basically the extrapolated next element
@@ -58,6 +60,7 @@ compute_delta_rt <- function(times) {
 #' @description x / sum(x)
 #' @param x Data to normalize.
 #' @return Normalized data.
+#' @keywords internal
 #' @export
 l2normalize <- function(x) {
   x / sum(x)
@@ -74,6 +77,7 @@ l2normalize <- function(x) {
 #' @param bandwidth Bandwidth to use to compute the kernel density.
 #' @param intensity_weighted Whether to use intensity weighting or not.
 #' @return \link[stats]{density} object containing the densities.
+#' @keywords internal
 #' @export
 compute_mass_density <- function(features,
                                  bandwidth,
@@ -103,6 +107,7 @@ compute_mass_density <- function(features,
 #' @param rt_range float Default chromatographic tolerance to use.
 #' @param aligned_features data.frame Aligned feature table.
 #' @return vector Custom chromatographic tolerances to use for each feature.
+#' @keywords internal
 #' @export
 get_custom_rt_tol <- function(use_observed_range,
                               peak_rts,
@@ -131,6 +136,7 @@ get_custom_rt_tol <- function(use_observed_range,
 #' @param aligned_rts vector Aligned retention time values.
 #' @param original_sample_rts vector Original feature retention time values before correction.
 #' @param adjusted_sample_rts vector Feature retention time values after time correction.
+#' @keywords internal
 #' @export
 compute_target_times <- function(aligned_rts,
                                  original_sample_rts,
@@ -158,6 +164,7 @@ compute_target_times <- function(aligned_rts,
 #' checks which values only occur a single time.
 #' @param values vector Values for which to compute the mask.
 #' @return vector Boolean vector which is the mask of values occuring only once.
+#' @keywords internal
 #' @export
 get_single_occurrence_mask <- function(values) {
   ttt <- table(values)
@@ -173,6 +180,7 @@ get_single_occurrence_mask <- function(values) {
 #' @param adjusted_sample_rts vector Feature retention time values after time correction.
 #' @param cap int Maximum number of time values to return.
 #' @return Indices of retention time values to use.
+#' @keywords internal
 #' @export
 get_times_to_use <- function(original_sample_rts, adjusted_sample_rts, cap = 2000) {
   to.use <- which(
@@ -195,6 +203,7 @@ get_times_to_use <- function(original_sample_rts, adjusted_sample_rts, cap = 200
 #' @param features data.frame Data table with features for which to predict the indices.
 #' @param mz_orig_tol float Mz tolerance to use as KDE bandwidth parameter.
 #' @return vector Predicted indices for valley points.
+#' @keywords internal
 #' @export
 predict_mz_break_indices <- function(features, mz_orig_tol) {
   mz_density <- compute_mass_density(
@@ -230,6 +239,7 @@ predict_mz_break_indices <- function(features, mz_orig_tol) {
 #' @param vlys_indices vector Indices of the valley points of mz clusters.
 #' @param mz_tol float Tolerance to use to check if values are close.
 #' @return pair Index range (start, end).
+#' @keywords internal
 #' @export
 get_mzrange_bound_indices <- function(aligned_feature_mass,
                                       mz,
@@ -258,6 +268,7 @@ get_mzrange_bound_indices <- function(aligned_feature_mass,
 #' @param rt_tol float Retention time tolerance.
 #' @return vector Indices which are within `rt_tol` from `target_time` or
 #' 1 if `target_time` is NA.
+#' @keywords internal
 #' @export
 get_rt_region_indices <- function(target_time, features, rt_tol) {
   if (!is.null(target_time) && !is.na(target_time)) {
@@ -279,6 +290,7 @@ get_rt_region_indices <- function(target_time, features, rt_tol) {
 #'   \item vlys - vector - The points in the data where the density is low
 #'                         (forming a valley in the function).
 #' }
+#' @keywords internal
 #' @export
 get_features_in_rt_range <- function(features, times, bw) {
   time_curve <- times[between(times, min(features$rt), max(features$rt))]
@@ -302,6 +314,7 @@ get_features_in_rt_range <- function(features, times, bw) {
 #' @param roi list Named list with vectors `pks` and `vlys`.
 #' @param times vector Retention time values
 #' @return vector Numbers of peaks within each region defined by a peak and the two valley points.
+#' @keywords internal
 #' @export
 count_peaks <- function(roi, times) {
   num_peaks <- rep(0, length(roi$pks))
@@ -326,6 +339,7 @@ count_peaks <- function(roi, times) {
 #'   \item vlys - vector - The points in the data where the density is low
 #'                         (forming a valley in the function).
 #' }
+#' @keywords internal
 #' @export
 compute_pks_vlys_rt <- function(features, times, bandwidth, target_rt, recover_min_count) {
   roi <- get_features_in_rt_range(
@@ -361,6 +375,7 @@ compute_pks_vlys_rt <- function(features, times, bandwidth, target_rt, recover_m
 #'   \item label - float - Interpolated retention time value.
 #'   \item sigma - float - Standard deviation of retention 
 #' }
+#' @keywords internal
 #' @export
 compute_mu_sc_std <- function(rt_profile, aver_diff) {
   x <- rt_profile$rt
@@ -394,6 +409,7 @@ compute_mu_sc_std <- function(rt_profile, aver_diff) {
 #' @param delta_rt vector Differences between consecutive retention time values (diff(times)).
 #' @importFrom dplyr between
 #' @return list Triplet of mz, label and intensity for the feature.
+#' @keywords internal
 #' @export
 compute_curr_rec_with_enough_peaks <- function(mz,
                                                peak,
@@ -440,6 +456,7 @@ compute_curr_rec_with_enough_peaks <- function(mz,
 #'   \item lower - double - The value of the lower bound valley point.
 #'   \item upper - double - The value of the upper bound valley point.
 #' }
+#' @keywords internal
 #' @export
 compute_boundaries <- function(valley_points, peak) {
   lower <- max(valley_points[valley_points < peak])
@@ -487,6 +504,7 @@ compute_peaks_and_valleys <- function(dens) {
 #' @param min_bandwidth float Minimum bandwidth to use.
 #' @param max_bandwidth float Maximum bandwidth to use.
 #' @return tibble Tibble with `mz`, `rt` and `intensity` columns.
+#' @keywords internal
 #' @export 
 compute_rectangle <- function(data_table,
                               aligned_feature_mz,
@@ -612,6 +630,7 @@ compute_rectangle <- function(data_table,
 #' @param rt_tol float Retention time tolerance.
 #' @param mz_tol float Mz tolerance to use.
 #' @return int Index of value in rectable closest to `target_rt` and `aligned_mz`.
+#' @keywords internal
 #' @export
 refine_selection <- function(target_rt, rectangle, aligned_mz, rt_tol, mz_tol) {
   if (!is.na(target_rt)) {

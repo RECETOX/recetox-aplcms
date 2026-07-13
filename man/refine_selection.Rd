@@ -24,3 +24,4 @@ int Index of value in rectable closest to `target_rt` and `aligned_mz`.
 \description{
 Refine the selection based on mz and rt differences.
 }
+\keyword{internal}

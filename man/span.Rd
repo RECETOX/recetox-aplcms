@@ -15,3 +15,4 @@ A numeric value representing the span of the vector.
 \description{
 This function calculates the span (range) of a numeric vector, ignoring NA values.
 }
+\keyword{internal}

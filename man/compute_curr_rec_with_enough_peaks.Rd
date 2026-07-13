@@ -36,3 +36,4 @@ list Triplet of mz, label and intensity for the feature.
 If there are enough peaks in the area, the function computes the interpolated retention time and intensity values using a Gaussian curve fitted to the data.
 If there are not enough peaks, the function computes the area under the curve using interpolation.
 }
+\keyword{internal}

@@ -20,3 +20,4 @@ The valleys or breaks of clusters in mz values are detected and a function
 is approximated to predict the indices for the mass values which are the closest to those
 valley points.
 }
+\keyword{internal}

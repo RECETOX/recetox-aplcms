@@ -20,3 +20,4 @@ A vector of intensity values at each rt intervals is returned.
 This is an internal function. It substracts a background when an EIC continuously 
 span more than half the retention time range. The background is estimated through kernel smoothing.
 }
+\keyword{internal}

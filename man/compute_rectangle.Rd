@@ -59,3 +59,4 @@ tibble Tibble with `mz`, `rt` and `intensity` columns.
 \description{
 Compute rectangle around feature with `aligned_feature_mz` and `target_rt` for recovery.
 }
+\keyword{internal}

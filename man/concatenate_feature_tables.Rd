@@ -12,3 +12,4 @@ concatenate_feature_tables(features, sample_names)
 \description{
 Concatenate multiple feature lists and add the sample id (origin of feature) as additional column.
 }
+\keyword{internal}

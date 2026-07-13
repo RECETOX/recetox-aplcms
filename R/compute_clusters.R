@@ -1,5 +1,6 @@
 
 #' Sort tibble based on sample_names
+#' @keywords internal
 #' @export
 sort_data <- function(sample_names, feature_tables) {
   index <- c()

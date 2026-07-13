@@ -24,3 +24,4 @@ Spline interpolation using \link[splines]{interpSpline} is used to map from adju
 back into the original times. The function requires `x` to be distinct, hence the filtering
 to only include rt values that occurr only once in both lists.
 }
+\keyword{internal}

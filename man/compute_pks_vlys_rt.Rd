@@ -28,3 +28,4 @@ Returns a list object with the following objects in it:
 \description{
 Compute peaks and valleys which have at least `recover_min_count` peaks.
 }
+\keyword{internal}

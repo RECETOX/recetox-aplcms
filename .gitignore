@@ -5,3 +5,4 @@ tests/testdata/mbr*
 *.tar.gz
 env
 .Rprofile
+docs

@@ -9,3 +9,4 @@ sort_data(sample_names, feature_tables)
 \description{
 Sort tibble based on sample_names
 }
+\keyword{internal}

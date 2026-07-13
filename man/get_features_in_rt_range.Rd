@@ -24,3 +24,4 @@ Returns a list object with the following objects in it:
 \description{
 Get peaks and valleys of smoothed rt values in range.
 }
+\keyword{internal}

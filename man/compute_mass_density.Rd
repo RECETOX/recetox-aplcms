@@ -23,3 +23,4 @@ Only used if intensity_weighted == TRUE.}
 The function takes the mz values and uses \link[stats]{density} to
 compute the local density, optionally using intensity based weighting.
 }
+\keyword{internal}

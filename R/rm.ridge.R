@@ -28,6 +28,7 @@ compute_rt_intervals_indices <- function(rt, rt_sel){
 #' @param bw Bandwidth for the kernel smoother. A very wide one is used here.
 #' @return A vector of intensity values at each rt intervals is returned.
 #' @importFrom dplyr between
+#' @keywords internal
 #' @export
 rm.ridge <- function(rt, intensity, bw) {
     this_rt <- which(intensity < quantile(intensity, 0.75))

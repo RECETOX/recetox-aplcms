@@ -15,3 +15,4 @@ Normalized data.
 \description{
 x / sum(x)
 }
+\keyword{internal}
