@@ -69,39 +69,6 @@ patrick::with_parameters_test_that(
 
     expect_equal(extracted_recovered_actual, extracted_recovered_expected)
     expect_equal(corrected_recovered_actual, corrected_recovered_expected)
-
-    if (store_reports) {
-      for (i in seq_along(files)) {
-        report_extracted <- dataCompareR::rCompare(
-          extracted_recovered_actual[[i]],
-          extracted_recovered_expected[[i]],
-          keys = keys,
-          roundDigits = 4,
-          mismatches = 100000
-        )
-        dataCompareR::saveReport(
-          report_extracted,
-          reportName = paste0(files[[i]], "_extracted"),
-          showInViewer = FALSE,
-          HTMLReport = FALSE,
-          mismatchCount = 10000
-        )
-        report_corrected <- dataCompareR::rCompare(
-          corrected_recovered_actual[[i]],
-          corrected_recovered_expected[[i]],
-          keys = keys,
-          roundDigits = 4,
-          mismatches = 100000
-        )
-        dataCompareR::saveReport(
-          report_corrected,
-          reportName = paste0(files[[i]], "_adjusted"),
-          showInViewer = FALSE,
-          HTMLReport = FALSE,
-          mismatchCount = 10000
-        )
-      }
-    }
   },
   patrick::cases(
     RCX_shortened = list(

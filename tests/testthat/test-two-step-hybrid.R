@@ -57,20 +57,4 @@ test_that("basic two-step hybrid test", {
 
   expect_equal(final_features, expected_final_features, tolerance = 0.001)
   expect_equal(final_features$metadata.mz, expected_final_features$metadata.mz, tolerance = 0.001)
-
-  ### WARNING: dataCompareR package is not being mantained as of 10/6/2025. 
-  ### Currently uses some deprecated features (e.g. select_ in dplyr package)
-  ### This part of code needs to be replaced or erased.
-  comparison <- dataCompareR::rCompare(
-    final_features,
-    expected_final_features,
-    keys = keys
-  )
-  dataCompareR::saveReport(
-    comparison,
-    reportName = "final_features_comparison",
-    reportLocation = file.path(testdata, "two-step-hybrid"),
-    showInViewer = FALSE,
-    missmatchCount = 10000
-  )
 })

@@ -8,7 +8,7 @@ Authors@R: c(
 Description: This is a customized fork of the original work from Tianwei Yu.
         It takes the adaptive processing of LC/MS metabolomics data further
         with focus on high resolution MS for both LC and GC applications.
-Depends: R (>= 3.50), MASS, mzR, splines, doParallel, foreach, future.apply,
+Depends: R (>= 4.3), MASS, mzR, splines, doParallel, foreach, future.apply,
         snow, plyr, dplyr, tidyr, stringr, tibble, tools, arrow
 Imports: future.apply, rawrr
 biocViews: Technology, MassSpectrometry
@@ -16,7 +16,7 @@ License: GPL-2
 LazyLoad: yes
 NeedsCompilation: no
 Suggests: 
-    dataCompareR, testthat (>= 3.0.0), microbenchmark
+    testthat (>= 3.0.0), microbenchmark, rawrr
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
 Encoding: UTF-8

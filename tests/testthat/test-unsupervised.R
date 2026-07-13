@@ -13,23 +13,6 @@ patrick::with_parameters_test_that(
     keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
     actual <- as_tibble(result$recovered_feature_sample_table)
 
-    if (store_reports) {
-      report <- dataCompareR::rCompare(
-        actual,
-        expected,
-        keys = keys,
-        roundDigits = 3,
-        mismatches = 100000
-      )
-      dataCompareR::saveReport(
-        report,
-        reportName = paste0(.test_name, "_unsupervised_report"),
-        showInViewer = FALSE,
-        HTMLReport = FALSE,
-        mismatchCount = 10000
-      )
-    }
-
     # arrow::write_parquet(actual, file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised.parquet")))
     expected <- arrow::read_parquet(file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised.parquet")))
 
