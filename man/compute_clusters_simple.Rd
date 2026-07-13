@@ -20,5 +20,9 @@ list of tibbles Feature tables passed initially with additional columns indicati
 mz and rt groups as well as the combined cluster index.
 }
 \description{
-Compute clusters using simple grouping based on numeric thresholds.
+Features are first grouped in mz dimension based on the tolerance.
+First, the absolute tolerance is computed for each feature, then a new group is started
+once the difference between consecutive features is above this threshold.
+The same process is then repeated for the retention time dimension.
+The individual indices are then combined into a single index in the `cluster` columns.
 }

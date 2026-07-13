@@ -6,22 +6,21 @@
 \usage{
 adjust.time(
   extracted_features,
-  mz_tol_relative,
-  rt_tol_relative,
+  rt_tol_relative = NA,
   colors = NA,
-  do.plot = TRUE
+  do_plot = FALSE
 )
 }
 \arguments{
 \item{extracted_features}{A list object. Each component is a matrix which is the output from compute_clusters}
 
-\item{mz_tol_relative}{The m/z tolerance level for peak alignment. This value is expressed as the
-percentage of the m/z value. This value, multiplied by the m/z value, becomes the cutoff level.}
-
 \item{rt_tol_relative}{The retention time tolerance level for peak alignment.}
 
 \item{colors}{The vector of colors to be used for the line plots of time adjustments. The default is NA,
 in which case the program uses a set of default color set.}
+
+\item{mz_tol_relative}{The m/z tolerance level for peak alignment. This value is expressed as the
+percentage of the m/z value. This value, multiplied by the m/z value, becomes the cutoff level.}
 
 \item{do.plot}{Indicates whether plot should be drawn.}
 }

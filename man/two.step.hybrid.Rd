@@ -8,38 +8,43 @@ two.step.hybrid(
   filenames,
   metadata,
   work_dir,
-  min.within.batch.prop.detect = 0.1,
-  min.within.batch.prop.report = 0.5,
-  min.batch.prop = 0.5,
-  batch.align.mz.tol = 1e-05,
-  batch.align.rt.tol = 50,
-  known.table = NA,
+  min_within_batch_prop_detect = 0.1,
+  min_within_batch_prop_report = 0.5,
+  min_batch_prop = 0.5,
+  min_occurrence = 2,
+  batch_align_mz_tol = 1e-05,
+  batch_align_rt_tol = 50,
+  known_table = NA,
   cluster = 4,
-  min.pres = 0.5,
-  min.run = 12,
-  mz.tol = 1e-05,
-  baseline.correct.noise.percentile = 0.05,
-  shape.model = "bi-Gaussian",
-  baseline.correct = 0,
-  peak.estim.method = "moment",
-  min.bw = NA,
-  max.bw = NA,
-  sd.cut = c(0.1, 100),
-  sigma.ratio.lim = c(0.05, 20),
-  component.eliminate = 0.01,
-  moment.power = 2,
-  align.mz.tol = NA,
-  align.rt.tol = NA,
-  max.align.mz.diff = 0.01,
-  pre.process = FALSE,
-  recover.mz.range = NA,
-  recover.rt.range = NA,
-  use.observed.range = TRUE,
-  match.tol.ppm = NA,
-  new.feature.min.count = 2,
-  recover.min.count = 3,
-  intensity.weighted = FALSE,
-  BIC.factor = 2
+  min_pres = 0.5,
+  min_run = 12,
+  mz_tol = 1e-05,
+  mz_tol_relative = NA,
+  rt_tol_relative = NA,
+  baseline_correct_noise_percentile = 0.05,
+  shape_model = "bi-Gaussian",
+  baseline_correct = 0,
+  peak_estim_method = "moment",
+  min_bw = NA,
+  max_bw = NA,
+  sd_cut = c(0.1, 100),
+  sigma_ratio_lim = c(0.05, 20),
+  component_eliminate = 0.01,
+  moment_power = 2,
+  align_mz_tol = NA,
+  align_rt_tol = NA,
+  max_align_mz_diff = 0.01,
+  pre_process = FALSE,
+  recover_mz_range = NA,
+  recover_rt_range = NA,
+  use_observed_range = TRUE,
+  match_tol_ppm = NA,
+  new_feature_min_count = 2,
+  recover_min_count = 3,
+  intensity_weighted = FALSE,
+  BIC_factor = 2,
+  do_plot = FALSE,
+  grouping_threshold = Inf
 )
 }
 \arguments{
@@ -49,103 +54,112 @@ two.step.hybrid(
 
 \item{work_dir}{The folder where all CDF files to be processed are located.}
 
-\item{min.within.batch.prop.detect}{A feature needs to be present in at least this proportion of the files, 
+\item{min_within_batch_prop_detect}{A feature needs to be present in at least this proportion of the files, 
 for it to be initially detected as a feature for a batch. This parameter replaces the "min.exp" parameter in semi.sup().}
 
-\item{min.within.batch.prop.report}{A feature needs to be present in at least this proportion of the files, 
-in a proportion of batches controlled by "min.batch.prop", to be included in the final feature table. This parameter 
+\item{min_within_batch_prop_report}{A feature needs to be present in at least this proportion of the files, 
+in a proportion of batches controlled by "min_batch_prop", to be included in the final feature table. This parameter 
 replaces the "min.exp" parameter in semi.sup().}
 
-\item{min.batch.prop}{A feature needs to be present in at least this proportion of the batches, for it to be 
+\item{min_batch_prop}{A feature needs to be present in at least this proportion of the batches, for it to be 
 considered in the entire data.}
 
-\item{batch.align.mz.tol}{The m/z tolerance in ppm for between-batch alignment.}
+\item{min_occurrence}{A feature has to show up in at least this number of profiles to be included in the final result.}
 
-\item{batch.align.rt.tol}{The RT tolerance for between-batch alignment.}
+\item{batch_align_mz_tol}{The m/z tolerance in ppm for between-batch alignment.}
 
-\item{known.table}{A data frame containing the known metabolite ions and previously found features.}
+\item{batch_align_rt_tol}{The RT tolerance for between-batch alignment.}
+
+\item{known_table}{A data frame containing the known metabolite ions and previously found features.}
 
 \item{cluster}{The number of CPU cores to be used}
 
-\item{min.pres}{This is a parameter of the run filter, to be passed to the function remove_noise().}
+\item{min_pres}{This is a parameter of the run filter, to be passed to the function remove_noise().}
 
-\item{min.run}{This is a parameter of the run filter, to be passed to the function remove_noise().}
+\item{min_run}{This is a parameter of the run filter, to be passed to the function remove_noise().}
 
-\item{mz.tol}{The user can provide the m/z tolerance level for peak identification. This value is expressed as the 
+\item{mz_tol}{The user can provide the m/z tolerance level for peak identification. This value is expressed as the 
 percentage of the m/z value. This value, multiplied by the m/z value, becomes the cutoff level.}
 
-\item{baseline.correct.noise.percentile}{The perenctile of signal strength of those EIC that don't pass the run filter, 
+\item{mz_tol_relative}{The m/z tolerance level for peak alignment. The default is NA, which allows the program to search for the 
+tolerance level based on the data. This value is expressed as the percentage of the m/z value. This value, multiplied by the m/z 
+value, becomes the cutoff level.}
+
+\item{rt_tol_relative}{The retention time tolerance level for peak alignment. The default is NA, which allows the program to search for 
+the tolerance level based on the data.}
+
+\item{baseline_correct_noise_percentile}{The perenctile of signal strength of those EIC that don't pass the run filter, 
 to be used as the baseline threshold of signal strength. This parameter is passed to remove_noise()}
 
-\item{shape.model}{The mathematical model for the shape of a peak. There are two choices - "bi-Gaussian" and "Gaussian". 
+\item{shape_model}{The mathematical model for the shape of a peak. There are two choices - "bi-Gaussian" and "Gaussian". 
 When the peaks are asymmetric, the bi-Gaussian is better. The default is "bi-Gaussian".}
 
-\item{baseline.correct}{This is a parameter in peak detection. After grouping the observations, the highest observation 
+\item{baseline_correct}{This is a parameter in peak detection. After grouping the observations, the highest observation 
 in each group is found. If the highest is lower than this value, the entire group will be deleted. The default value is NA, 
 which allows the program to search for the cutoff level.}
 
-\item{peak.estim.method}{the bi-Gaussian peak parameter estimation method, to be passed to subroutine prof.to.features. 
+\item{peak_estim_method}{the bi-Gaussian peak parameter estimation method, to be passed to subroutine prof.to.features. 
 Two possible values: moment and EM.}
 
-\item{min.bw}{The minimum bandwidth in the smoother in prof.to.features().}
+\item{min_bw}{The minimum bandwidth in the smoother in prof.to.features().}
 
-\item{max.bw}{The maximum bandwidth in the smoother in prof.to.features().}
+\item{max_bw}{The maximum bandwidth in the smoother in prof.to.features().}
 
-\item{sd.cut}{A parameter for the prof.to.features() function. A vector of two. Features with standard deviation outside 
+\item{sd_cut}{A parameter for the prof.to.features() function. A vector of two. Features with standard deviation outside 
 the range defined by the two numbers are eliminated.}
 
-\item{sigma.ratio.lim}{A parameter for the prof.to.features() function. A vector of two. It enforces the belief of the 
+\item{sigma_ratio_lim}{A parameter for the prof.to.features() function. A vector of two. It enforces the belief of the 
 range of the ratio between the left-standard deviation and the right-standard deviation of the bi-Gaussian function used 
 to fit the data.}
 
-\item{component.eliminate}{In fitting mixture of bi-Gaussian (or Gaussian) model of an EIC, when a component accounts 
+\item{component_eliminate}{In fitting mixture of bi-Gaussian (or Gaussian) model of an EIC, when a component accounts 
 for a proportion of intensities less than this value, the component will be ignored.}
 
-\item{moment.power}{The power parameter for data transformation when fitting the bi-Gaussian or Gaussian mixture model in an EIC.}
+\item{moment_power}{The power parameter for data transformation when fitting the bi-Gaussian or Gaussian mixture model in an EIC.}
 
-\item{align.mz.tol}{The user can provide the m/z tolerance level for peak alignment to override the program's selection. 
+\item{align_mz_tol}{The user can provide the m/z tolerance level for peak alignment to override the program's selection. 
 This value is expressed as the percentage of the m/z value. This value, multiplied by the m/z value, becomes the cutoff level.}
 
-\item{align.rt.tol}{The user can provide the elution time tolerance level to override the program's selection. This value 
+\item{align_rt_tol}{The user can provide the elution time tolerance level to override the program's selection. This value 
 is in the same unit as the elution time, normaly seconds.}
 
-\item{max.align.mz.diff}{As the m/z tolerance in alignment is expressed in relative terms (ppm), it may not be suitable 
+\item{max_align_mz_diff}{As the m/z tolerance in alignment is expressed in relative terms (ppm), it may not be suitable 
 when the m/z range is wide. This parameter limits the tolerance in absolute terms. It mostly influences feature matching 
 in higher m/z range.}
 
-\item{pre.process}{Logical. If true, the program will not perform time correction and alignment. It will only generate peak tables 
+\item{pre_process}{Logical. If true, the program will not perform time correction and alignment. It will only generate peak tables 
 for each spectra and save the files. It allows manually dividing the task to multiple machines.}
 
-\item{recover.mz.range}{A parameter of the recover.weaker() function. The m/z around the feature m/z to search for observations. 
+\item{recover_mz_range}{A parameter of the recover.weaker() function. The m/z around the feature m/z to search for observations. 
 The default value is NA, in which case 1.5 times the m/z tolerance in the aligned object will be used.}
 
-\item{recover.rt.range}{A parameter of the recover.weaker() function. The retention time around the feature retention time to 
+\item{recover_rt_range}{A parameter of the recover.weaker() function. The retention time around the feature retention time to 
 search for observations. The default value is NA, in which case 0.5 times the retention time tolerance in the aligned 
 object will be used.}
 
-\item{use.observed.range}{A parameter of the recover.weaker() function. If the value is TRUE, the actual range of the observed 
+\item{use_observed_range}{A parameter of the recover.weaker() function. If the value is TRUE, the actual range of the observed 
 locations of the feature in all the spectra will be used.}
 
-\item{match.tol.ppm}{The ppm tolerance to match identified features to known metabolites/features.}
+\item{match_tol_ppm}{The ppm tolerance to match identified features to known metabolites/features.}
 
-\item{new.feature.min.count}{The number of profiles a new feature must be present for it to be added to the database.}
+\item{new_feature_min_count}{The number of profiles a new feature must be present for it to be added to the database.}
 
-\item{recover.min.count}{The minimum time point count for a series of point in the EIC for it to be considered a true feature.}
+\item{recover_min_count}{The minimum time point count for a series of point in the EIC for it to be considered a true feature.}
 
-\item{intensity.weighted}{Whether to use intensity to weight mass density estimation.}
+\item{intensity_weighted}{Whether to use intensity to weight mass density estimation.}
 
-\item{BIC.factor}{the factor that is multiplied on the number of parameters to modify the BIC criterion. If larger than 1, 
+\item{BIC_factor}{the factor that is multiplied on the number of parameters to modify the BIC criterion. If larger than 1, 
 models with more peaks are penalized more.}
 }
 \value{
 A list is returned.
 \itemize{
-  \item batchwise.results - A list. Each item in the list is the product of semi.sup() from a single batch.
-  \item final.ftrs - Feature table. This is the end product of the function.
+  \item batchwise_features - A list. Each item in the list is the product of hybrid() from a single batch.
+  \item known_table - Known table augmented with newly detected features.
+  \item aligned_features - Pseudo table of aligned features across batches used for aligning and recovering final features.
+  \item final_features - Feature table. This is the end product of the function.
 }
 }
 \description{
 A two-stage hybrid feature detection and alignment procedure, for data generated in multiple batches.
-NOTE: This function is OBSOLETE and should no longer be used,
-since it is no longer maintained and will soon be removed.
 }

@@ -10,12 +10,11 @@ load.lcms(filename)
 \item{filename}{The CDF file name.}
 }
 \value{
-A list is returned.
+A tibble is returned with the following columns:
 \itemize{
-  \item masses - The vector of m/z values.
-  \item labels - The vector of retention times.
-  \item intensi - The vector of intensity values.
-  \item times - The vector of unique time points.
+  \item mz - The vector of m/z values.
+  \item rt - The vector of retention times.
+  \item intensity - The vector of intensity values.
 }
 }
 \description{

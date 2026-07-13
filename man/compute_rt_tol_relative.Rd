@@ -22,24 +22,16 @@ compute_rt_tol_relative(
 
 \item{number_of_samples}{The number of spectra in this analysis.}
 
-\item{rt}{retention time of all peaks in all profiles in the study.}
+\item{rt}{Retention time of all peaks in all profiles in the study.}
 
-\item{min.bins}{the minimum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too few observations are present.}
+\item{min.bins}{The minimum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too few observations are present.}
 
-\item{max.bins}{the maximum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too many observations are present.}
+\item{max.bins}{The maximum number of bins to use in the kernel density estimation. It overrides aver.bin.size when too many observations are present.}
 
 \item{do.plot}{Indicates whether plot should be drawn.}
 }
 \value{
-rt_tol_relative the elution time tolerance.
-This conditional makes sure that length(s) is <= max.num.segments
-If False, length(s) =  max.num.segments, and s[i] is the largest
-integer no greater than the corresponding element. Otherwise
-length(s) =  length(breaks) - 1
-This loop creates a vector with distances between rt peaks. Distances
-are stored in a triangular matrix and converted to a vector subsequently.
-Vector length should be < 100, otherwise, vector is
-constructed extracting only 100 samples.
+rt_tol_relative The elution time tolerance.
 }
 \description{
 Compute the elution time tolerance based on the kernel density estimation.

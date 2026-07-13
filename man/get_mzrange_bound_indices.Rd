@@ -19,5 +19,6 @@ get_mzrange_bound_indices(aligned_feature_mass, mz, vlys_indices, mz_tol)
 pair Index range (start, end).
 }
 \description{
-Compute range of valley indices which are in mz_tol range around aligned_feature_mass.
+Generate indices of valley points which are within the mz tolerance range around the aligned feature mass. If the aligned feature mass is smaller than the second valley point, the first two valley points are returned as indices.
+Otherwise, the function checks which valley points are within the mz tolerance range and also includes the closest valley point above and below the aligned feature mass.
 }

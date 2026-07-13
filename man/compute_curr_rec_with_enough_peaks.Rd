@@ -21,7 +21,7 @@ compute_curr_rec_with_enough_peaks(
 
 \item{valleys}{Valley points to compute the boundary region.}
 
-\item{features}{tibble Tibble with `rt` and `intensities` column.}
+\item{features}{tibble Tibble with `rt` and `intensity` column.}
 
 \item{aver_diff}{float Average retention time difference.}
 
@@ -33,5 +33,6 @@ compute_curr_rec_with_enough_peaks(
 list Triplet of mz, label and intensity for the feature.
 }
 \description{
-Compute the rectangle around recovered features given that enough peaks are present.
+If there are enough peaks in the area, the function computes the interpolated retention time and intensity values using a Gaussian curve fitted to the data.
+If there are not enough peaks, the function computes the area under the curve using interpolation.
 }

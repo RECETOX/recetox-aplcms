@@ -8,13 +8,14 @@ remove_noise(
   filename,
   min_pres,
   min_run,
+  max_run,
   mz_tol,
   baseline_correct,
   baseline_correct_noise_percentile,
   intensity_weighted,
   do.plot,
   cache,
-  grouping_threshold = Inf
+  grouping_threshold
 )
 }
 \arguments{
@@ -24,6 +25,9 @@ remove_noise(
 signals grouped by m/z to be considered a peak.}
 
 \item{min_run}{Run filter parameter. The minimum length of elution time for a series of signals grouped by 
+m/z to be considered a peak.}
+
+\item{max_run}{Run filter parameter. The maximum length of elution time for a series of signals grouped by 
 m/z to be considered a peak.}
 
 \item{mz_tol}{m/z tolerance level for the grouping of data points. This value is expressed as the fraction of 

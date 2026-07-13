@@ -13,7 +13,7 @@ compute_mass_density(features, bandwidth, intensity_weighted, n = 512)
 
 \item{mz}{Mass values to compute the density over.}
 
-\item{intensities}{Intensities of the peaks at mz values.
+\item{intensity}{Intensities of the peaks at mz values.
 Only used if intensity_weighted == TRUE.}
 }
 \value{
