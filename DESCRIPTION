@@ -10,7 +10,7 @@ Description: This is a customized fork of the original work from Tianwei Yu.
         with focus on high resolution MS for both LC and GC applications.
 Depends: R (>= 4.3),
 Imports:
-    arrow
+    arrow,
     doParallel,
     dplyr,
     foreach,
