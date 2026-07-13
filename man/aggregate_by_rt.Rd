@@ -14,7 +14,7 @@ returns a tibble with the following columns
 \itemize{
   \item mz - m/z ratio
   \item rt - retention time
-  \item intensities - signal strength
+  \item intensity - signal strength
 }
 }
 \description{

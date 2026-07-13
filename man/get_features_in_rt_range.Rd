@@ -7,14 +7,19 @@
 get_features_in_rt_range(features, times, bw)
 }
 \arguments{
-\item{features}{tibble Data table with `rt` and `intensities` columns.}
+\item{features}{tibble Data table with `rt` and `intensity` columns.}
 
 \item{times}{vector Raw retention time data from raw data file.}
 
 \item{bw}{float Bandwidth to use for kernel smoothing.}
 }
 \value{
-
+Returns a list object with the following objects in it:
+\itemize{
+  \item pks - vector - The data points at which the density peaks.
+  \item vlys - vector - The points in the data where the density is low
+                        (forming a valley in the function).
+}
 }
 \description{
 Get peaks and valleys of smoothed rt values in range.

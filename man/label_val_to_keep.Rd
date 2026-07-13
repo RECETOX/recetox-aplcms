@@ -9,10 +9,14 @@ label_val_to_keep(min_run, timeline, min_pres, this_times, times)
 \arguments{
 \item{min_run}{Run filter parameter. The minimum length of elution time for a series of signals grouped by m/z to be considered a peak.}
 
+\item{timeline}{The vector of zeros with the same length as the number of retention time points.}
+
 \item{min_pres}{Run filter parameter. The minimum proportion of presence in the time period for a series of signals grouped
 by m/z to be considered a peak.}
 
-\item{times.}{Retention times vector.}
+\item{this_times}{The vector of retention time points for the current profile.}
+
+\item{times}{Retention times vector.}
 }
 \value{
 to_keep.

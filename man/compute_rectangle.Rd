@@ -23,7 +23,7 @@ compute_rectangle(
 )
 }
 \arguments{
-\item{data_table}{tibble Feature table with `mz`, `rt` and `intensities` column.}
+\item{data_table}{tibble Feature table with `mz`, `rt` and `intensity` column.}
 
 \item{aligned_feature_mz}{float Mz value of feature in aligned feature table.}
 
@@ -54,7 +54,7 @@ compute_rectangle(
 \item{max_bandwidth}{float Maximum bandwidth to use.}
 }
 \value{
-tibble Tibble with `mz`, `rt` and `intensities` columns.
+tibble Tibble with `mz`, `rt` and `intensity` columns.
 }
 \description{
 Compute rectangle around feature with `aligned_feature_mz` and `target_rt` for recovery.

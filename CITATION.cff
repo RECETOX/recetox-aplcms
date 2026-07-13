@@ -29,6 +29,6 @@ abstract: >-
   recetox-aplcms is a software tool for feature detection in
   mass spectrometry data. It is based on the apLCMS package.
 license: GPL-2.0
-commit: 110f7ddc79ebd7834c088d068a66260d18d37d2d
-version: v0.10.3
-date-released: '2023-03-27'
+commit: 9a54be2b62df4bae18da3a93f937bba113ffd4e6
+version: v0.15.0
+date-released: '2026-05-13'

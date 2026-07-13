@@ -2,18 +2,25 @@
 % Please edit documentation in R/recover.weaker.R
 \name{compute_mu_sc_std}
 \alias{compute_mu_sc_std}
-\title{Compute interpolated retention time, its standard deviation, and intensity values,.}
+\title{Estimate the parameters of a single Gaussian peak fitted to the data: 
+interpolated retention time, its standard deviation, and intensity values}
 \usage{
-compute_mu_sc_std(features, aver_diff)
+compute_mu_sc_std(rt_profile, aver_diff)
 }
 \arguments{
-\item{features}{tibble Features with `rt` and `intensities` columns.}
-
 \item{aver_diff}{float Average retention time difference.}
+
+\item{features}{tibble Features with `rt` and `intensity` columns.}
 }
 \value{
-
+Returns a list object with the following objects in it:
+\itemize{
+  \item intensity - float - Interpolated intensity value.
+  \item label - float - Interpolated retention time value.
+  \item sigma - float - Standard deviation of retention 
+}
 }
 \description{
-Compute interpolated retention time, its standard deviation, and intensity values,.
+Estimate the parameters of a single Gaussian peak fitted to the data: 
+interpolated retention time, its standard deviation, and intensity values
 }

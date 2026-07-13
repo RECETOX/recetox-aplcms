@@ -1,51 +1,60 @@
 test_that("basic two-step hybrid test", {
-  skip("Disabled")
+  # skip("Disabled")
   skip_on_ci()
-  test_names <- c(
-    "mbr_test0.mzml",
-    "mbr_test1.mzml",
-    "mbr_test2.mzml",
-    "mbr_test0_copy.mzml"
+  files <- c(
+    "SPECIMEN_b1_006_110_120.mzML",
+    "SPECIMEN_b1_038_110_120.mzML",
+    "SPECIMEN_b1_053_110_120.mzML", 
+    "SPECIMEN_b1_067_110_120.mzML", 
+    "SPECIMEN_b1_095_110_120.mzML", 
+    "SPECIMEN_b2_007_110_120.mzML", 
+    "SPECIMEN_b2_053_110_120.mzML", 
+    "SPECIMEN_b2_095_110_120.mzML"   
   )
-  test_path <- paste0("../testdata/", test_names)
-  metadata <- read.table("../testdata/two_step_hybrid_info.csv", sep = ",", header = TRUE)
 
-  tempdir <- tempdir()
-  dir.create(tempdir)
-  temp_path <- paste0(tempdir, "/", test_names)
-  file.copy(test_path, temp_path)
+  # Set up paths
+  testdata <- file.path("..", "testdata")
+  test_files <- sapply(files, function(x) {
+    file.path(testdata, "input", x)
+  })
 
-  expected_final_features <- readRDS("../testdata/final_ftrs.Rda")
-  known_table <- arrow::read_parquet("../testdata/known_table.parquet")
+  # Load metadata
+  metadata <- read.table(
+    file.path(testdata, "two-step-hybrid", "two_step_hybrid_info.csv"),
+    sep = ",",
+    header = TRUE,
+    strip.white = TRUE
+  )
 
+  # Load known table 
+  known_table <- arrow::read_parquet(
+    file.path(testdata, "hybrid", "known_table.parquet")
+  )
+  
   result <- two.step.hybrid(
-    filenames = test_names,
+    filenames = test_files,
     metadata = metadata,
-    work_dir = tempdir,
-    known.table = known_table,
-    cluster = get_num_workers()
+    work_dir = test_path,
+    known_table = known_table,
+    cluster = 4,
+    do_plot = FALSE,     
+    min_run = 2,
+    mz_tol = 5e-06,
+    mz_tol_relative = 3e-06,
+    rt_tol_relative = 20,
+    grouping_threshold = 3      
   )
-  final_features <- result$final_features
+  final_features <- as.data.frame(result$final_features)
 
-  keys <- c("feature", "mz", "rt", "mz_min", "mz_max", "sample")
-  final_features <- as_tibble(arrange_at(final_features, keys))
-  expected_final_features <- as_tibble(arrange_at(expected_final_features, keys))
-  comparison <- dataCompareR::rCompare(
-    final_features,
-    expected_final_features,
-    keys = keys
-  )
+  # saveRDS(result$final_features, file.path(testdata, "two-step-hybrid", "final_features.rds"))
+  
+  # Expected final features
+  expected_final_features <- as.data.frame(readRDS(file.path(testdata, "two-step-hybrid", "final_features.rds")))
 
-  dataCompareR::saveReport(
-    comparison,
-    reportName = "final_features_comparison",
-    reportLocation = ".",
-    showInViewer = FALSE,
-    missmatchCount = 10000
-  )
-
-  unlink(tempdir, recursive = TRUE)
+  keys <- c("metadata.id", "metadata.mz", "metadata.rt", "metadata.mzmin", "metadata.mzmax")
+  final_features <- arrange_at(final_features, keys)
+  expected_final_features <- arrange_at(expected_final_features, keys)
 
   expect_equal(final_features, expected_final_features, tolerance = 0.001)
-  expect_equal(final_features$mz, expected_final_features$mz, tolerance = 0.001)
+  expect_equal(final_features$metadata.mz, expected_final_features$metadata.mz, tolerance = 0.001)
 })

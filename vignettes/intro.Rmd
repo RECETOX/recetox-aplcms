@@ -1,0 +1,81 @@
+---
+title: "Introduction to recetox.aplcms"
+author: "Helge Hecht"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Overview
+
+`recetox.aplcms` provides adaptive processing tools for liquid chromatography-mass spectrometry (LC-MS) metabolomics data. This package extends the original adaptive peak detection algorithm with enhanced capabilities for high-resolution MS data from both LC and GC applications.
+
+## Key Features
+
+- **Adaptive Peak Detection**: Automatically detects peaks without manual parameter tuning
+- **Feature Alignment**: Aligns features across multiple samples
+- **Noise Reduction**: Advanced filtering to remove background noise
+- **Two-Step Hybrid Methods**: Combines multiple detection strategies for improved sensitivity
+- **High Resolution Support**: Optimized for modern high-resolution mass spectrometers
+
+## Installation
+
+Install from GitHub:
+
+```r
+install.packages("remotes")
+remotes::install_github("RECETOX/recetox-aplcms")
+```
+
+## Quick Start
+
+```r
+library(recetox.aplcms)
+
+# Load raw data
+data <- load.lcms("path/to/file.mzML")
+
+# Run two-step hybrid processing
+result <- two.step.hybrid(data,
+                          min_pres = 0.5,
+                          min_run = 3,
+                          max_run = 30)
+
+# Extract features
+features <- result$feature_table
+```
+
+## Workflow
+
+The typical processing workflow includes:
+
+1. **Data Loading**: Import raw MS files using `load.lcms()`
+2. **Profile Generation**: Create intensity profiles from raw data
+3. **Peak Detection**: Use adaptive or hybrid methods for feature detection
+4. **Alignment**: Align detected features across samples
+5. **Aggregation**: Group features into coherent compounds
+6. **Export**: Write results to standard formats
+
+## Citation
+
+If you use this package in your research, please cite:
+
+```r
+citation("recetox.aplcms")
+```
+
+## Further Resources
+
+- [GitHub Repository](https://github.com/RECETOX/recetox-aplcms)
+- [Issue Tracker](https://github.com/RECETOX/recetox-aplcms/issues)
+- [Change Log](https://github.com/RECETOX/recetox-aplcms/blob/master/CHANGELOG.md)

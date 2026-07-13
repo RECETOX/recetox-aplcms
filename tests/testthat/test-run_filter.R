@@ -2,6 +2,7 @@ patrick::with_parameters_test_that(
   "test run_filter",
   {
     if(ci_skip == TRUE) skip_on_ci()
+    if(do_skip) skip("Skipping test case")
 
     testdata <- file.path("..", "testdata")
     input_path <- file.path(testdata, "filtered", "run_filter", paste0(filename, ".parquet"))
@@ -21,28 +22,32 @@ patrick::with_parameters_test_that(
       min_pres = 0.5,
       min_run = 12,
       max_run = Inf,
-      ci_skip = FALSE
+      ci_skip = FALSE,
+      do_skip = FALSE
     ),
     RCX_06_shortened = list(
       filename = "RCX_06_shortened",
       min_pres = 0.7,
       min_run = 4,
       max_run = Inf,
-      ci_skip = FALSE
+      ci_skip = FALSE,
+      do_skip = FALSE
     ),
     RCX_07_shortened = list(
       filename = "RCX_07_shortened",
       min_pres = 0.7,
       min_run = 4,
       max_run = Inf,
-      ci_skip = FALSE
+      ci_skip = FALSE,
+      do_skip = FALSE
     ),
     RCX_08_shortened = list(
       filename = "RCX_08_shortened",
       min_pres = 0.7,
       min_run = 4,
       max_run = Inf,
-      ci_skip = FALSE
+      ci_skip = FALSE,
+      do_skip = FALSE
     )
   )
 )

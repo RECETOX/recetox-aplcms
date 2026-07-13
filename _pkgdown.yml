@@ -1,0 +1,67 @@
+url: https://recetox.github.io/recetox-aplcms
+
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#2E86AB"
+    base_font: {google: "Roboto"}
+    heading_font: {google: "Roboto Slab"}
+
+development:
+  mode: auto
+
+authors:
+  Helge Hecht:
+    href: "https://orcid.org/0000-0001-6744-996X"
+  Tianwei Yu:
+    href: "https://orcid.org/0000-0003-2502-1628"
+
+reference:
+  - title: "Data Loading & I/O"
+    contents:
+      - starts_with("load_")
+      - starts_with("read_")
+      - starts_with("write_")
+  - title: "Feature Detection & Processing"
+    contents:
+      - starts_with("adaptive")
+      - starts_with("feature")
+      - starts_with("find_")
+  - title: "Peak Characterization"
+    contents:
+      - starts_with("peak")
+      - starts_with("characterize")
+  - title: "Alignment & Aggregation"
+    contents:
+      - starts_with("align")
+      - starts_with("aggregate")
+  - title: "Filtering & Noise Reduction"
+    contents:
+      - starts_with("filter")
+      - starts_with("remove_")
+      - starts_with("rm_")
+  - title: "Two-Step Hybrid Methods"
+    contents:
+      - starts_with("two_step")
+      - starts_with("hybrid")
+  - title: "Visualization"
+    contents:
+      - starts_with("plot")
+
+articles:
+  - title: "Getting Started"
+    navbar: ~
+    contents:
+      - intro
+  - title: "Advanced Topics"
+    contents:
+      - starts_with("advanced/")
+
+navbar:
+  structure:
+    left: [intro, reference, articles, license]
+    right: [github, lightswitch, search]
+  components:
+    github:
+      icon: fa-github
+      href: https://github.com/RECETOX/recetox-aplcms

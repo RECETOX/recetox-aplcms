@@ -61,6 +61,8 @@ patrick::with_parameters_test_that(
             do.plot = FALSE
         )
     })
+    
+    # update_expected(actual, expected_files, "extracted", ".parquet")
 
     expected <- read_parquet_files(expected_files, "extracted", ".parquet")
     expect_equal(actual, expected, tolerance = 0.02)

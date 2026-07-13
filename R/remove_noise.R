@@ -89,7 +89,7 @@ remove_noise <- function(filename,
   newprof <- cbind(
     raw.prof$features$mz,
     raw.prof$features$rt,
-    raw.prof$features$intensities,
+    raw.prof$features$intensity,
     raw.prof$features$grps
   )
 
@@ -125,5 +125,6 @@ remove_noise <- function(filename,
     )
   }
 
+  new.prof <- new.prof |> dplyr::mutate(sample_id = raw.data$sample_id[1])
   return(new.prof)
 }

@@ -1,20 +1,42 @@
 Package: recetox.aplcms
 Title: Adaptive processing of LC-MS data
-Version: 0.14.1
-Date: 2025-08-14
+Version: 0.15.0
+Date: 2026-05-13
 Authors@R: c(
     person("Tianwei", "Yu", email = "tianwei.Yu@emory.edu", role = "aut"),
     person("Helge", family="Hecht", email = "helge.hecht@recetox.muni.cz", role = "cre"))
 Description: This is a customized fork of the original work from Tianwei Yu.
         It takes the adaptive processing of LC/MS metabolomics data further
         with focus on high resolution MS for both LC and GC applications.
-Depends: R (>= 3.50), MASS, mzR, splines, doParallel, foreach, future.apply,
-        snow, plyr, dplyr, tidyr, stringr, tibble, tools, arrow
+Depends: R (>= 4.3),
+Imports:
+    arrow,
+    doParallel,
+    dplyr,
+    foreach,
+    future.apply,
+    MASS,
+    mzR,
+    plyr,
+    snow,
+    splines,
+    stringr,
+    tibble,
+    tidyr,
+    tools
 biocViews: Technology, MassSpectrometry
 License: GPL-2
 LazyLoad: yes
+URL: https://github.com/RECETOX/recetox-aplcms
+BugReports: https://github.com/RECETOX/recetox-aplcms/issues
 NeedsCompilation: no
 Suggests: 
-    dataCompareR, testthat (>= 3.0.0), microbenchmark, rawrr, purrr
+    covr,
+    microbenchmark,
+    patrick,
+    rawrr,
+    testthat (>= 3.0.0),
+    usethis
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
+Encoding: UTF-8

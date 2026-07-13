@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [dev] - now
+## [0.15.0] - 2025-12-19
+### Added
+- added unit tests for normix and compute_mu_sc_std by @luciakostialova in [#250](https://github.com/RECETOX/recetox-aplcms/pull/250)
+
+### Changed
+
+- simplified clustering and clustering using standard deviations by @Ondrej-Bucek in [#257](https://github.com/RECETOX/recetox-aplcms/pull/257) and [#258](https://github.com/RECETOX/recetox-aplcms/pull/258)
+- refactored Prof.to.feat.R by @luciakostialova in [#259](https://github.com/RECETOX/recetox-aplcms/pull/259)
+- Replace semi.sup in two.step.hybrid with hybrid  by @mbodova in [#264](https://github.com/RECETOX/recetox-aplcms/pull/264)
+
+## [0.14.2] - 2025-12-19
 ### Added
 - implemented maximum elution time filter [#243](https://github.com/RECETOX/recetox-aplcms/pull/243)
 

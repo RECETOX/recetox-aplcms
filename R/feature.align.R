@@ -41,6 +41,22 @@ create_intensity_row <- function(sample_grouped) {
     tidyr::pivot_wider(names_from = "sample_id", values_from = "intensity")
 }
 
+#' Create intensity row for batch data
+#' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
+#' @return list of samples' intensities
+#' @export
+create_intensity_row_tsh <- function(sample_grouped) { 
+  sample_grouped |>
+    dplyr::summarise(dplyr::across(
+        dplyr::contains("_intensity"),
+          function(x) {
+            y <- x[!is.na(x)]
+            if (length(y) == 0) NA else y[1]
+          }
+        )
+    )
+}
+
 #' Compute median RT for each sample
 #' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
 #' @return Median RT for each sample.
@@ -50,6 +66,22 @@ create_rt_row <- function(sample_grouped) {
     dplyr::group_by(sample_id) %>%
     dplyr::summarise(rt = median(rt)) %>%
     tidyr::pivot_wider(names_from = "sample_id", values_from = "rt")
+}
+
+#' Create rt row for batch data
+#' @param sample_grouped A dataframe with grouped mz and RT values for a particular cluster.
+#' @return list of samples' retention times 
+#' @export
+create_rt_row_tsh <- function(sample_grouped) {
+  sample_grouped |>
+    dplyr::summarise(dplyr::across(
+        dplyr::contains("_rt"),
+          function(x) {
+            y <- x[!is.na(x)]
+            if (length(y) == 0) NA else y[1]
+          }
+        )
+    )
 }
 
 #' Create a list containing 3 tibbles: metadata, intensities and RTs.
@@ -134,12 +166,12 @@ create_features_from_cluster <- function(features,
   # split according to mz values
   turns_mz <- find_optima(features$mz, bandwidth = mz_tol_relative * median(features$mz))
   for (i in seq_along(turns_mz$peaks)) {
-    sample_grouped_mz <- filter_based_on_density(features, turns_mz, 1, i)
+    sample_grouped_mz <- filter_based_on_density(features, turns_mz, "mz", i)
     if (validate_contents(sample_grouped_mz, min_occurrence)) {
       # split according to rt values
       turns_rt <- find_optima(sample_grouped_mz$rt, bandwidth = rt_tol_relative / 1.414)
       for (ii in seq_along(turns_rt$peaks)) {
-        sample_grouped_rt <- filter_based_on_density(sample_grouped_mz, turns_rt, 2, ii)
+        sample_grouped_rt <- filter_based_on_density(sample_grouped_mz, turns_rt, "rt", ii)
 
         # create output rows if valid
         if (validate_contents(sample_grouped_rt, min_occurrence)) {
@@ -215,6 +247,7 @@ create_aligned_feature_table <- function(features_table,
 
   # table with number of values per group
   groups_cardinality <- table(features_table$cluster)
+
   # count those with minimal occurrence
   sel.labels <- as.numeric(names(groups_cardinality)[groups_cardinality >= min_occurrence])
 
@@ -223,7 +256,7 @@ create_aligned_feature_table <- function(features_table,
     i = seq_along(sel.labels), .combine = "comb", .multicombine = TRUE
   ) %dopar% {
     rows <- create_features_from_cluster(
-      dplyr::filter(features_table, cluster == sel.labels[i]),
+      dplyr::filter(features_table, features_table$cluster == sel.labels[i]),
       mz_tol_relative,
       rt_tol_relative,
       min_occurrence,
@@ -235,6 +268,86 @@ create_aligned_feature_table <- function(features_table,
   aligned_features$intensity <- clean_data_matrix(aligned_features$intensity, sample_names)
   aligned_features$rt <- clean_data_matrix(aligned_features$rt, sample_names)
   aligned_features$metadata <- add_feature_ids(aligned_features$metadata)
+
+  return(aligned_features)
+}
+
+#' Simple version of create_features_from_cluster for testing
+#' @param features The features table subsetted for a particular cluster.
+#' @param min_occurrence A minimal number of profiles a feature has to be present in
+#' @param sample_names A list of sample names.
+#' @param batch A flag to signify if the function works with batch data.
+#' @return A list containing 3 tibbles: metadata, intensities and RT
+#'
+#' @export
+create_features_from_cluster_simple <- function(features,
+                                                min_occurrence,
+                                                sample_names,
+                                                batch = FALSE) {
+  if (!validate_contents(features, min_occurrence)) {
+    return(NULL)
+  }
+
+  clusters <- unique(features$cluster)
+ 
+  # reset row names
+  rownames(features) <- NULL
+
+  # create rows for this cluster
+  if(batch) {
+    metadata <- create_metadata(features, sample_names) %>% add_column( id = clusters, .before = 1)
+    intensity <- create_intensity_row_tsh(features) %>% add_column(id = clusters, .before = 1)
+    rt <- create_rt_row_tsh(features) %>% add_column(id = clusters, .before = 1)
+  }
+  else {
+    metadata <- create_metadata(features, sample_names) %>% add_column( id = clusters, .before = 1)
+    intensity <- create_intensity_row(features) %>% add_column(id = clusters, .before = 1)
+    rt <- create_rt_row(features) %>% add_column(id = clusters, .before = 1)
+  }
+  # return output
+  return(list(metadata_row = metadata, intensity_row = intensity, rt_row = rt))
+}
+
+#' Simple version of create_aligned_feature_table for testing, grouping by cluster IDs
+#' @param features_table A list object. Each component is a matrix which is the output from compute_clusters().
+#' @param min_occurrence  A feature has to show up in at least this number of profiles to be included in the final result.
+#' @param sample_names List of sample names.
+#' @param batch A flag to signify if the function works with batch data.
+#' @return A list of 3 tibbles containing aligned metadata, intensities an RTs.
+#' 
+#' @export
+create_aligned_feature_table_simple <- function(features_table,
+                                         min_occurrence,
+                                         sample_names,
+                                         batch = FALSE) {
+
+  cluster_list <- features_table %>%
+    dplyr::group_by(cluster) %>%
+    dplyr::group_split() 
+
+  processed_clusters <- lapply(cluster_list, function(x) {
+    create_features_from_cluster_simple(features = x, 
+                                        min_occurrence = min_occurrence, 
+                                        sample_names = sample_names,
+                                        batch = batch)
+  })
+
+  aligned_features <- list(
+    metadata = dplyr::bind_rows(lapply(processed_clusters, `[[`, "metadata_row")),
+    intensity = dplyr::bind_rows(lapply(processed_clusters, `[[`, "intensity_row")),
+    rt = dplyr::bind_rows(lapply(processed_clusters, `[[`, "rt_row"))
+  )
+
+  aligned_features$metadata <- add_feature_ids(aligned_features$metadata)
+
+  if(batch){
+    aligned_features$intensity <- add_feature_ids(aligned_features$intensity)
+    aligned_features$rt <- add_feature_ids(aligned_features$rt)
+  }
+  else{
+    aligned_features$intensity <- clean_data_matrix(aligned_features$intensity, sample_names)
+    aligned_features$rt <- clean_data_matrix(aligned_features$rt, sample_names)
+  }
 
   return(aligned_features)
 }

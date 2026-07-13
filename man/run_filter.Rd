@@ -4,7 +4,7 @@
 \alias{run_filter}
 \title{Continuity index.}
 \usage{
-run_filter(newprof, min_pres, min_run)
+run_filter(newprof, min_pres, min_run, max_run)
 }
 \arguments{
 \item{newprof}{The matrix containing m/z, retention time, intensity, and EIC label as columns.}
@@ -13,6 +13,8 @@ run_filter(newprof, min_pres, min_run)
 by m/z to be considered a peak.}
 
 \item{min_run}{Run filter parameter. The minimum length of elution time for a series of signals grouped by m/z to be considered a peak.}
+
+\item{max_run}{Run filter parameter. The maximum length of elution time for a series of signals grouped by m/z to be considered a peak.}
 }
 \value{
 A list is returned. new_rec - The matrix containing m/z, retention time, intensity, and EIC label as columns after applying the run filter.

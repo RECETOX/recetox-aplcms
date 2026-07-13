@@ -7,7 +7,7 @@
 compute_pks_vlys_rt(features, times, bandwidth, target_rt, recover_min_count)
 }
 \arguments{
-\item{features}{tibble Features with `mz`, `rt` and `intensities`.}
+\item{features}{tibble Features with `mz`, `rt` and `intensity`.}
 
 \item{times}{vector Retention time values from the raw data file.}
 
@@ -18,7 +18,12 @@ compute_pks_vlys_rt(features, times, bandwidth, target_rt, recover_min_count)
 \item{recover_min_count}{int Minimum number of peaks required in the area to recover the signal.}
 }
 \value{
-
+Returns a list object with the following objects in it:
+\itemize{
+  \item pks - vector - The data points at which the density peaks with at least `recover_min_count` peaks between the valley points.
+  \item vlys - vector - The points in the data where the density is low
+                        (forming a valley in the function).
+}
 }
 \description{
 Compute peaks and valleys which have at least `recover_min_count` peaks.

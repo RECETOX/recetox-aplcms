@@ -4,3 +4,4 @@ conda
 Dockerfile
 .gitignore
 .vscode
+dev

@@ -34,27 +34,10 @@ patrick::with_parameters_test_that("basic hybrid test", {
   # arrow::write_parquet(actual, expected_path)
 
   expected <- arrow::read_parquet(expected_path)
-
-  if (store_reports) {
-    report <- dataCompareR::rCompare(
-      actual,
-      expected,
-      keys = keys,
-      roundDigits = 3,
-      mismatches = 100000
-    )
-    dataCompareR::saveReport(
-      report,
-      reportName = paste0(.test_name, "_hybrid_report"),
-      showInViewer = FALSE,
-      HTMLReport = FALSE,
-      mismatchCount = 10000
-    )
-  }
-
   expect_equal(actual, expected, tolerance = 1e-06)
 },
 patrick::cases(
+  # Ignore for now, too simple for the calculation
   mbr = list(
     files = c("mbr_test0.mzml", "mbr_test1.mzml", "mbr_test2.mzml"),
     ci_skip = TRUE,

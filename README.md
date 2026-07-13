@@ -62,6 +62,22 @@ This will create a container and automatically run all the tests from the **test
 ## Setting up a development environment
 The development environment can be set up in two ways, either via **VSCode's devcontainer** extension or a **docker container**.
 
+### Conda environment setup
+To create the development environment from the provided Conda file, run the following from the repository root:
+
+```bash
+conda env create -f conda/environment-dev.yaml
+conda activate recetox-aplcms-dev
+```
+
+If the environment already exists and you want to update it to match the file, run:
+
+```bash
+conda env update -f conda/environment-dev.yaml --prune
+```
+
+After activation, run `R` or `radian` and continue with fetching test data and `devtools::test()` as described below.
+
 ### Devcontainer
 To use a devcontainer you need VSCode with [Remote - Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension and docker installed on your machine:
 - Clone your fork of the repository and open the folder in VSCode;

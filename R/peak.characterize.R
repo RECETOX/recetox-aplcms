@@ -63,20 +63,20 @@ merge.new <- function(mean0, sd0, min0, max0, n, x) {
 #' @param m The number of times the feature was found in the current experiment.
 #' @param metadata_row A row from the aligned feature metadata table containing mz, mzmin, and mzmax.
 #' @param rt_row A vector of retention times for the feature across samples in the current experiment.
-#' @param ftrs_row A vector of log-transformed intensities for the feature across samples.
+#' @param intensity_row A vector of log-transformed intensities for the feature across samples.
 #'
 #' @return A vector with the updated statistics for all 18 elements of the known feature table row.
 #' @export
-characterize <- function(existing_row, n, m, metadata_row, rt_row, ftrs_row) {
-    existing_row[7] <- sum(existing_row[7], length(ftrs_row) - 1, na.rm = T)
+characterize <- function(existing_row, n, m, metadata_row, rt_row, intensity_row) {
+    existing_row[7] <- sum(existing_row[7], length(intensity_row) - 1, na.rm = T)
     existing_row[8] <- (n + m) / existing_row[7]
-    existing_row[9] <- min(existing_row[6], existing_row[9], metadata_row$mzmin, na.rm = T)
-    existing_row[10] <- max(existing_row[6], existing_row[10], metadata_row$mzmax, na.rm = T)
+    existing_row[9] <- min(existing_row[6], existing_row[9], metadata_row$mzmin, na.rm = TRUE)
+    existing_row[10] <- max(existing_row[6], existing_row[10], metadata_row$mzmax, na.rm = TRUE)
 
     this <- merge.new(existing_row[11], existing_row[12], existing_row[13], existing_row[14], n, rt_row[2:length(rt_row)])
     existing_row[11:14] <- this
 
-    this <- merge.new(existing_row[15], existing_row[16], existing_row[17], existing_row[18], n, ftrs_row[2:length(ftrs_row)])
+    this <- merge.new(existing_row[15], existing_row[16], existing_row[17], existing_row[18], n, intensity_row[2:length(intensity_row)])
     existing_row[15:18] <- this
 
     return(existing_row)
@@ -88,24 +88,23 @@ characterize <- function(existing_row, n, m, metadata_row, rt_row, ftrs_row) {
 #' The function takes the information about the feature in the known feature table (if available), and updates it using the
 #' information found in the current dataset.
 #' @param existing_row The existing row in the known feature table.
-#' @param ftrs_row The row of the matched feature in the new aligned feature table.
+#' @param intensity_row The row of the matched feature in the new aligned feature table.
 #' @param rt_row The row of the matched feature in the new retention time table of aligned features.
 #' @return A vector, the updated row for the known feature table.
-peak_characterize <- function(existing_row = NA, metadata_row, ftrs_row, rt_row) {
-    ftrs_row[2:length(ftrs_row)] <- log10(ftrs_row[2:length(ftrs_row)] + 1)
-    ftrs_row[ftrs_row == 0] <- NA
-    if (length(existing_row) == 1) {
-        existing_row <- rep(NA, 18)
+peak_characterize <- function(existing_row = NA, metadata_row, intensity_row, rt_row, new = FALSE) {
+    intensity_row[2:length(intensity_row)] <- log10(intensity_row[2:length(intensity_row)] + 1)
+    intensity_row[intensity_row == 0] <- NA
+    if (new) {
         existing_row[6] <- metadata_row$mz
     }
-
+    
     n <- round(as.numeric(existing_row[7]) * as.numeric(existing_row[8])) # times found in previous experiments
     if (is.na(n)) {
         n <- 0
     }
     m <- sum(!is.na(rt_row[2:length(rt_row)])) # times found in current experiment
 
-    existing_row <- characterize(existing_row, n, m, metadata_row, rt_row, ftrs_row)
+    existing_row <- characterize(existing_row, n, m, metadata_row, rt_row, intensity_row)
 
     return(tibble::as_tibble(existing_row))
 }

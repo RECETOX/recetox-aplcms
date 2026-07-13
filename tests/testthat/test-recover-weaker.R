@@ -26,7 +26,7 @@ patrick::with_parameters_test_that(
     recovered <- lapply(seq_along(ms_files), function(i) {
       recover.weaker(
         filename = ms_files[[i]],
-        sample_name = files[i],
+        sample_name = extracted[[i]]$sample_id,
         extracted_features = extracted[[i]],
         adjusted_features = adjusted[[i]],
         metadata_table = aligned$metadata,
@@ -69,39 +69,6 @@ patrick::with_parameters_test_that(
 
     expect_equal(extracted_recovered_actual, extracted_recovered_expected)
     expect_equal(corrected_recovered_actual, corrected_recovered_expected)
-
-    if (store_reports) {
-      for (i in seq_along(files)) {
-        report_extracted <- dataCompareR::rCompare(
-          extracted_recovered_actual[[i]],
-          extracted_recovered_expected[[i]],
-          keys = keys,
-          roundDigits = 4,
-          mismatches = 100000
-        )
-        dataCompareR::saveReport(
-          report_extracted,
-          reportName = paste0(files[[i]], "_extracted"),
-          showInViewer = FALSE,
-          HTMLReport = FALSE,
-          mismatchCount = 10000
-        )
-        report_corrected <- dataCompareR::rCompare(
-          corrected_recovered_actual[[i]],
-          corrected_recovered_expected[[i]],
-          keys = keys,
-          roundDigits = 4,
-          mismatches = 100000
-        )
-        dataCompareR::saveReport(
-          report_corrected,
-          reportName = paste0(files[[i]], "_adjusted"),
-          showInViewer = FALSE,
-          HTMLReport = FALSE,
-          mismatchCount = 10000
-        )
-      }
-    }
   },
   patrick::cases(
     RCX_shortened = list(
@@ -118,3 +85,51 @@ patrick::with_parameters_test_that(
     )
   )
 )
+
+
+test_that("Unit testing compute_mu_sc_std", {
+
+  # Test 1: normal distribution, small dataset
+  rt_profile <- data.frame(
+    rt = c(1, 2, 3, 4, 5),
+    intensity = dnorm(c(1, 2, 3, 4, 5), mean = 3, sd = 1) * 100 )
+  actual <- compute_mu_sc_std(rt_profile, aver_diff = 1)
+  expected <- list(
+    miu = 3,
+    sigma = 1,
+    sc = 100
+  )
+
+  expect_equal(actual$sc, expected$sc, tolerance = 5)  # higher tolerance for smaller dataset
+  expect_equal(actual$miu, expected$miu, tolerance = 0.1)
+  expect_equal(actual$sigma, expected$sigma, tolerance = 0.1)
+
+  # Test 2: larger normal dataset
+  rt_profile <- data.frame(
+    rt = c(0:120),
+    intensity = 1000 * dnorm(0:120, mean = 60, sd = 15)
+  )
+
+  expected <- list(
+    miu = 60,
+    sigma = 15,
+    sc = 1000
+  )
+
+  actual <- compute_mu_sc_std(rt_profile, aver_diff = 1)
+  expect_equal(actual, expected, tolerance=0.01)
+
+  # Test 4: even larger dataset
+  rt_profile <- data.frame(
+    rt = c(0:1000),
+    intensity = 5000 * dnorm(0:1000, mean = 500, sd = 50)
+  )
+  expected <- list(
+    miu = 500,
+    sigma = 50,
+    sc = 5000
+  )
+  actual <- compute_mu_sc_std(rt_profile, aver_diff = 1)
+  expect_equal(actual, expected)
+
+})
