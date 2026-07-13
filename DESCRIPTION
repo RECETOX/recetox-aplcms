@@ -15,7 +15,7 @@ License: GPL-2
 LazyLoad: yes
 NeedsCompilation: no
 Suggests: 
-    testthat (>= 3.0.0), microbenchmark, rawrr
+    testthat (>= 3.0.0), microbenchmark, rawrr, covr
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
 Encoding: UTF-8
