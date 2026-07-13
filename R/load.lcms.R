@@ -118,7 +118,6 @@ load.lcms.raw <- function(filename, chunk_size = 100) {
     stop(paste("The file", filename, "does not exist."))
   }
 
-  header <- rawrr::readFileHeader(filename)
   idx <- rawrr::readIndex(filename)
   n_scans <- length(idx$scan)
   chunk_starts <- seq(1, n_scans, by = chunk_size)
