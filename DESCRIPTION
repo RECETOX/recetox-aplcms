@@ -29,10 +29,11 @@ License: GPL-2
 LazyLoad: yes
 NeedsCompilation: no
 Suggests: 
-    testthat (>= 3.0.0),
-    microbenchmark,
-    rawrr,
     covr,
+    microbenchmark,
+    patrick,
+    rawrr,
+    testthat (>= 3.0.0),
     usethis
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
