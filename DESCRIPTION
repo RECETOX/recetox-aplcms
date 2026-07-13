@@ -27,6 +27,8 @@ Imports:
 biocViews: Technology, MassSpectrometry
 License: GPL-2
 LazyLoad: yes
+URL: https://github.com/RECETOX/recetox-aplcms
+BugReports: https://github.com/RECETOX/recetox-aplcms/issues
 NeedsCompilation: no
 Suggests: 
     covr,

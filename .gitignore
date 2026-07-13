@@ -3,6 +3,5 @@ tests/testdata/mbr*
 .vscode
 *.Rcheck
 *.tar.gz
-*.Rmd
 env
 .Rprofile
