@@ -1,4 +1,4 @@
-url: https://recetox-muni-cz.github.io/recetox-aplcms
+url: https://recetox.github.io/recetox-aplcms
 
 template:
   bootstrap: 5
@@ -12,9 +12,9 @@ development:
 
 authors:
   Helge Hecht:
-    href: "https://orcid.org/0000-0002-8348-9841"
+    href: "https://orcid.org/0000-0001-6744-996X"
   Tianwei Yu:
-    href: "https://orcid.org/0000-0002-7739-164X"
+    href: "https://orcid.org/0000-0003-2502-1628"
 
 reference:
   - title: "Data Loading & I/O"
