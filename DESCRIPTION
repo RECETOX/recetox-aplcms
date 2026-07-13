@@ -23,7 +23,7 @@ Imports:
     stringr,
     tibble,
     tidyr,
-    tools,
+    tools
 biocViews: Technology, MassSpectrometry
 License: GPL-2
 LazyLoad: yes
