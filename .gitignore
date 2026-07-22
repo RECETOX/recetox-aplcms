@@ -1,5 +1,10 @@
 tests/testdata/RCX*
 tests/testdata/mbr*
+
+tests/testdata/input/21_qc_no_dil_milliq.mzml
+tests/testdata/input/8_qc_no_dil_milliq.mzml
+tests/testdata/input/29_qc_no_dil_milliq.mzml
+
 .vscode
 *.Rcheck
 *.tar.gz
