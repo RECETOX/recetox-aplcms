@@ -25,10 +25,12 @@ jobs:
         r-version: ['4.6']
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Chekout
+        uses: actions/checkout@v6
         with:
             lfs: 'true'
-      - uses: actions/checkout@v6
+      - name: chekout with lfs
+        uses: actions/checkout@v6
         run: git lfs pull
       - name: Set up R ${{ matrix.r-version }}
         uses: r-lib/actions/setup-r@v2

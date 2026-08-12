@@ -32,8 +32,9 @@ jobs:
       - uses: actions/checkout@v6
         with:
             lfs: 'true'
-      - uses: actions/checkout@v6
-      - run: git lfs pull
+      - name: checkout with lfs
+        uses: actions/checkout@v6
+        run: git lfs pull
       - name: Create conda environment
         uses: conda-incubator/setup-miniconda@v3
         with:
