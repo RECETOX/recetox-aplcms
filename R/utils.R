@@ -221,6 +221,7 @@ get_num_workers <- function() {
 }
 
 #' @keywords internal
+#' @export
 is_mzml <- function(filepath) {
   if (tools::file_ext(filepath) %in% c("mzml", "mzML")) {
     return(TRUE)
@@ -229,4 +230,5 @@ is_mzml <- function(filepath) {
 }
 
 #' @keywords internal
+#' @export
 `%notin%` <- function(x, y) !(x %in% y)
