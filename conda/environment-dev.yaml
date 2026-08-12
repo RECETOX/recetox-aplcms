@@ -32,3 +32,4 @@ dependencies:
   - bioconductor-rawrr
   - r-purrr
   - r-future.apply
+  - r-xml2
