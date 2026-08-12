@@ -1,10 +1,9 @@
-name: recetox-aplcms-dev
+name: recetox-aplcms
 channels:
   - conda-forge
   - bioconda
 dependencies:
   - r-base
-  - icu
   - r-mass
   - r-rgl
   - bioconductor-mzR ==2.36.0
@@ -18,17 +17,13 @@ dependencies:
   - r-tidyr
   - r-stringr
   - r-tibble
-  - r-devtools 
-  - r-languageserver
-  - r-jsonlite
-  - r-styler
   - r-patrick
-  - radian
-  - r-httpgd
-  - r-microbenchmark
-  - r-covr
   - r-plyr
   - bioconductor-rawrr
   - r-purrr
   - r-future.apply
   - r-xml2
+  - r-testthat
+  - r-usethis
+  - r-covr
+  - r-microbenchmark

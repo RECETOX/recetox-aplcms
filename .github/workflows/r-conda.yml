@@ -37,9 +37,9 @@ jobs:
       - name: Create conda environment
         uses: conda-incubator/setup-miniconda@v3
         with:
-          activate-environment: recetox-aplcms-dev
+          activate-environment: recetox-aplcms
           auto-update-conda: true
-          environment-file: conda/environment-dev.yaml
+          environment-file: conda/environment.yaml
           auto-activate-base: false
       - run: |
           conda init bash
@@ -47,9 +47,9 @@ jobs:
           conda list
       - name: Install ThermoRawFileReaderDLLs
         run: |
-          conda activate recetox-aplcms-dev
+          conda activate recetox-aplcms
           Rscript -e "rawrr::installRawFileReaderDLLs()" -e "rawrr::installRawrrExe()"
       - name: Test coverage
         run: |
-          conda activate recetox-aplcms-dev
+          conda activate recetox-aplcms
           Rscript -e "covr::codecov(quiet = FALSE)"
