@@ -74,7 +74,6 @@ read_arrow <- function(filepath) {
 #' @return Character string with run/sample ID, or `NA` if unsupported format
 #' @export
 #' @importFrom xml2 read_xml xml_ns xml_find_first xml_attr
-#' @importFrom rawrr readFileHeader
 #' @examples
 #' \dontrun{
 #' run_id <- read_run_id("sample.mzML")
@@ -86,7 +85,10 @@ read_run_id <- function(filepath) {
     ns <- xml2::xml_ns(doc)
     run_node <- xml2::xml_find_first(doc, ".//d1:run", ns)
     return(xml2::xml_attr(run_node, "id"))
-  } else if (tools::file_ext(filepath) == 'raw'){
+  } else if (tools::file_ext(filepath) == 'raw') {
+    if (!requireNamespace("rawrr", quietly = TRUE)) {
+      stop("The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
+    }
     return(rawrr::readFileHeader(filepath)$'Sample id')
   } else {
     return(NA)
