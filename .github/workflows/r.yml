@@ -53,8 +53,10 @@ jobs:
         shell: Rscript {0}
       - name: Install ThermoRawFileReaderDLLs
         run: |
-          conda activate recetox-aplcms-dev
-          Rscript -e "rawrr::installRawFileReaderDLLs()" -e "rawrr::installRawrrExe()"
+          install.packages(c("rawrr"))
+          rawrr::installRawFileReaderDLLs()
+          rawrr::installRawrrExe()
+        shell: Rscript {0}
       - name: Check
         run: rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "error")
         shell: Rscript {0}
