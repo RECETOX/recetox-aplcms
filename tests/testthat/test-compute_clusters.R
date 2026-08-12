@@ -88,10 +88,8 @@ test_that("compute clusters_simple_sd", {
 
   actual <- actual[order(sapply(actual, function(x) x$sample_id[1]))]
   result <- lapply(actual, summary)
-  result <- lapply(result, function (x) dimnames(x)[[2]] <- NULL)
 
   expected <- readRDS(file.path("..", "testdata", "clusters", "clusters_simple_sd.Rds"))
-  expected <- lapply(expected, function (x) dimnames(x)[[2]] <- NULL)
 
   expect_equal(result, expected, tolerance = 0.02)
 })
