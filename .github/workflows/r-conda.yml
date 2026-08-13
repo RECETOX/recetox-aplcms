@@ -40,7 +40,7 @@ jobs:
           activate-environment: recetox-aplcms
           auto-update-conda: true
           environment-file: conda/environment.yaml
-          auto-activate-base: false
+          auto-activate: false
       - run: |
           conda init bash
           conda env list
