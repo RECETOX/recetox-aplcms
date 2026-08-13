@@ -27,7 +27,9 @@ register_functions_to_cluster <- function(cluster) {
     "compute_breaks_3",
     "compute_chromatographic_profile",
     "compute_clusters",
+    "compute_clusters_sd",
     "compute_clusters_simple",
+    "compute_clusters_simple_sd",
     "compute_comb",
     "compute_corrected_features",
     "compute_corrected_features_v2",
@@ -49,6 +51,7 @@ register_functions_to_cluster <- function(cluster) {
     "compute_pks_vlys_rt",
     "compute_rectangle",
     "compute_rt_intervals_indices",
+    "compute_rt_tol_relative",
     "compute_scale",
     "compute_sel",
     "compute_start_bound",
@@ -61,7 +64,9 @@ register_functions_to_cluster <- function(cluster) {
     "correct_time_v2",
     "count_peaks",
     "create_aligned_feature_table",
+    "create_aligned_feature_table_simple",
     "create_features_from_cluster",
+    "create_features_from_cluster_simple",
     "create_intensity_row",
     "create_intensity_row_tsh",
     "create_metadata",
@@ -123,12 +128,12 @@ register_functions_to_cluster <- function(cluster) {
     "preprocess_profile",
     "process_chunk",
     "prof.to.features",
+    "read_arrow",
     "read_parquet_files",
+    "read_run_id",
     "readjust_times",
     "recover.weaker",
     "recover_weaker_signals",
-    "read_arrow",
-    "read_run_id",
     "refine_selection",
     "remove_noise",
     "rev_cum_sum",
@@ -221,6 +226,7 @@ get_num_workers <- function() {
 }
 
 #' @keywords internal
+#' @export
 is_mzml <- function(filepath) {
   if (tools::file_ext(filepath) %in% c("mzml", "mzML")) {
     return(TRUE)

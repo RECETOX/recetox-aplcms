@@ -1,0 +1,29 @@
+name: recetox-aplcms
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base
+  - r-mass
+  - r-rgl
+  - bioconductor-mzR ==2.36.0
+  - r-splines2
+  - r-doparallel
+  - r-foreach
+  - r-snow
+  - r-rcpp
+  - r-arrow
+  - r-dplyr
+  - r-tidyr
+  - r-stringr
+  - r-tibble
+  - r-patrick
+  - r-plyr
+  - bioconductor-rawrr
+  - r-purrr
+  - r-future.apply
+  - r-xml2
+  - r-testthat
+  - r-usethis
+  - r-covr
+  - r-microbenchmark

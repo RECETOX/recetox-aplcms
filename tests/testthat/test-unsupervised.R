@@ -11,10 +11,10 @@ patrick::with_parameters_test_that(
 
     result <- unsupervised(test_files, cluster = 3)
     keys <- c("mz", "rt", "sample", "sample_rt", "sample_intensity")
-    actual <- as_tibble(result$recovered_feature_sample_table)
+    actual <- as_tibble(result$recovered_feature_sample_table) |> dplyr::arrange_at(keys)
 
     # arrow::write_parquet(actual, file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised.parquet")))
-    expected <- arrow::read_parquet(file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised.parquet")))
+    expected <- arrow::read_parquet(file.path("../testdata/unsupervised", paste0(.test_name, "_unsupervised.parquet"))) |> dplyr::arrange_at(keys)
 
     expect_equal(actual, expected)
   },

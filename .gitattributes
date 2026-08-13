@@ -1,0 +1,6 @@
+*.parquet filter=lfs diff=lfs merge=lfs -text
+*.mzml filter=lfs diff=lfs merge=lfs -text
+*.mzML filter=lfs diff=lfs merge=lfs -text
+*.mzXML filter=lfs diff=lfs merge=lfs -text
+*.raw filter=lfs diff=lfs merge=lfs -text
+*.Rda filter=lfs diff=lfs merge=lfs -text

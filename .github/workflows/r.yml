@@ -21,11 +21,17 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false
       matrix:
-        r-version: ['4.6']
+        r-version: ['4.3','4.6']
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          lfs: 'true'
       - uses: actions/checkout@v6
+      - run: git lfs pull
       - name: Set up R ${{ matrix.r-version }}
         uses: r-lib/actions/setup-r@v2
         with:
@@ -45,6 +51,12 @@ jobs:
         run: |
           install.packages(c("remotes", "rcmdcheck"))
           remotes::install_deps(dependencies = TRUE)
+        shell: Rscript {0}
+      - name: Install ThermoRawFileReaderDLLs
+        run: |
+          install.packages(c("rawrr"))
+          rawrr::installRawFileReaderDLLs()
+          rawrr::installRawrrExe()
         shell: Rscript {0}
       - name: Check
         run: rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "error")

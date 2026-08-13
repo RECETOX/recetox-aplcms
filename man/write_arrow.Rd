@@ -2,10 +2,28 @@
 % Please edit documentation in R/io.R
 \name{write_arrow}
 \alias{write_arrow}
-\title{Function to save table with metadata to parquet file}
+\title{Write data frame with metadata to parquet file}
 \usage{
 write_arrow(data_frame, path, metadata = NA)
 }
+\arguments{
+\item{data_frame}{A data frame to write}
+
+\item{path}{Path to the output parquet file}
+
+\item{metadata}{Optional named list of metadata key-value pairs to embed}
+}
+\value{
+Invisible NULL (side effect is writing the file)
+}
 \description{
-Function to save table with metadata to parquet file
+Creates an Arrow table from a data frame and optionally adds metadata
+to the table schema before writing to parquet.
+}
+\examples{
+\dontrun{
+df <- data.frame(x = 1:5, y = letters[1:5])
+meta <- list(author = "test", date = "2024-01-01")
+write_arrow(df, "output.parquet", meta)
+}
 }

@@ -22,7 +22,7 @@ dependencies:
   - r-languageserver
   - r-jsonlite
   - r-styler
-  - r-datacomparer
+  - r-lintr
   - r-patrick
   - radian
   - r-httpgd
@@ -32,3 +32,4 @@ dependencies:
   - bioconductor-rawrr
   - r-purrr
   - r-future.apply
+  - r-xml2

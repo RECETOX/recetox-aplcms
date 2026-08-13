@@ -146,7 +146,7 @@ unsupervised <- function(
   grouping_threshold = Inf
 ) {
   if (!is(cluster, 'cluster')) {
-    cluster <- parallel::makeCluster(cluster)
+    cluster <- parallel::makePSOCKcluster(names = cluster)
     on.exit(parallel::stopCluster(cluster))
   }
 
