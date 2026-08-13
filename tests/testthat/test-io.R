@@ -54,17 +54,22 @@ patrick::with_parameters_test_that(
     expect_equal(read_run_id(filepath), expected)
   },
   patrick::cases(
-    qc_no_dil_milliq = list(
-      filepath = file.path("..", "testdata", "input","8_qc_no_dil_milliq.mzml"),
-      expected = '8_qc_no_dil_milliq'
-    ),
+    # Currently disabled due to not downloading large mzml files.
+    # qc_no_dil_milliq = list(
+    #   filepath = file.path("..", "testdata", "input", "8_qc_no_dil_milliq.mzml"),
+    #   expected = '8_qc_no_dil_milliq'
+    # ),
     mbr0 = list(
       filepath = file.path("..", "testdata", "input", 'mbr_test0.mzml'),
-      expected = '_x0032_016_Jan_12_QE2_47'
+      expected = '2016_Jan_12_QE2_47'
     ),
     rawfile = list(
       filepath = file.path("..", "testdata", "input","8_qc_no_dil_milliq.raw"),
       expected = '8_qc_no_dil_milliq'
+    ),
+    processed_mzml = list(
+      filepath = file.path("..", "testdata", "input", "Tribrid_201106_009-QC1_1_NEG_FISABIO_single_eic.raw.mzML"),
+      expected = 'Tribrid_201106_009-QC1_1_NEG_FISABIO'
     )
   )
 )

@@ -67,11 +67,16 @@ read_arrow <- function(filepath) {
 #' Extract run ID from mass spectrometry file
 #'
 #' Reads the run identifier from mzML or Thermo RAW files.
-#' For mzML files, extracts the run ID from the XML structure.
+#' For mzML files, checks `fileDescription/sourceFileList` for source file names.
+#' If all source files (after stripping `.raw`, `.mzml`, `.mzXML`, `.netcdf`,
+#' `.mzdata` extensions, iteratively to handle compound extensions like `.raw.mzml`)
+#' share the same base name, returns that name. Otherwise falls back to the
+#' `id` attribute of the `run` node. If neither is present, stops with an error.
 #' For RAW files, reads the sample ID from the file header.
 #'
 #' @param filepath Path to an mzML or RAW file
-#' @return Character string with run/sample ID, or `NA` if unsupported format
+#' @return Character string with run/sample ID
+#' @error Stops if mzML file has no valid run ID source
 #' @export
 #' @importFrom xml2 read_xml xml_ns xml_find_first xml_attr
 #' @examples
@@ -83,15 +88,39 @@ read_run_id <- function(filepath) {
   if(is_mzml(filepath)) {
     doc <- xml2::read_xml(filepath)
     ns <- xml2::xml_ns(doc)
+
+    # Check for fileDescription > sourceFileList
+    source_file_nodes <- xml2::xml_find_all(doc, ".//d1:fileDescription/d1:sourceFileList/d1:sourceFile[@name]", ns)
+
+    if (length(source_file_nodes) > 0) {
+      # Get all names and strip known file type endings
+      names <- xml2::xml_attr(source_file_nodes, "name")
+      # Strip .raw, .mzml, .mzXML, .netcdf, .mzdata (case insensitive), iteratively
+      repeat {
+        new_names <- gsub("\\.(raw|mzml|mzxml|netcdf|mzdata)$", "", names, ignore.case = TRUE)
+        if (all(new_names == names)) break
+        names <- new_names
+      }
+      # Check if all stripped names match
+      if (length(unique(names)) == 1) {
+        return(names[1])
+      }
+    }
+
+    # Fallback to run node id attribute
     run_node <- xml2::xml_find_first(doc, ".//d1:run", ns)
-    return(xml2::xml_attr(run_node, "id"))
+    if (!inherits(run_node, "xml_missing")) {
+      return(xml2::xml_attr(run_node, "id"))
+    }
+
+    stop("Cannot find run ID: neither sourceFile name nor run id attribute found in mzML file")
   } else if (tools::file_ext(filepath) == 'raw') {
     if (!requireNamespace("rawrr", quietly = TRUE)) {
       stop("The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
     }
     return(rawrr::readFileHeader(filepath)$'Sample id')
   } else {
-    return(NA)
+    stop("Unsupported file type supplied!")
   }
 }
 
