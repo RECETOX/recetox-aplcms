@@ -71,7 +71,7 @@ read_arrow <- function(filepath) {
 #' If all source files (after stripping `.raw`, `.mzml`, `.mzXML`, `.netcdf`,
 #' `.mzdata` extensions, iteratively to handle compound extensions like `.raw.mzml`)
 #' share the same base name, returns that name. Otherwise falls back to the
-#' `id` attribute of the `run` node. If neither is present, stops with an error.
+#' `id` attribute of the `run` node.
 #' For RAW files, reads the sample ID from the file header.
 #'
 #' @param filepath Path to an mzML or RAW file
@@ -112,14 +112,14 @@ read_run_id <- function(filepath) {
       return(xml2::xml_attr(run_node, "id"))
     }
 
-    stop("Cannot find run ID: neither sourceFile name nor run id attribute found in mzML file")
+    stop("Cannot find run ID: neither sourceFile name nor run id attribute found in mzML file")    
   } else if (tools::file_ext(filepath) == 'raw') {
     if (!requireNamespace("rawrr", quietly = TRUE)) {
       stop("The 'rawrr' package is required but not installed. Please install it with install.packages('rawrr').")
     }
     return(rawrr::readFileHeader(filepath)$'Sample id')
   } else {
-    stop("Unsupported file type supplied!")
+    return(NA)
   }
 }
 

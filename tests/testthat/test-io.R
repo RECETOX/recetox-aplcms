@@ -67,6 +67,14 @@ patrick::with_parameters_test_that(
       filepath = file.path("..", "testdata", "input","8_qc_no_dil_milliq.raw"),
       expected = '8_qc_no_dil_milliq'
     ),
+    mzxml = list(
+      filepath = file.path("..", "testdata", "input", "test_file.mzXML"),
+      expected = NA
+    ),
+    mzdata = list(
+      filepath = file.path("..", "testdata", "input", "alg3.mzdata"),
+      expected = NA
+    ),
     processed_mzml = list(
       filepath = file.path("..", "testdata", "input", "Tribrid_201106_009-QC1_1_NEG_FISABIO_single_eic.raw.mzML"),
       expected = 'Tribrid_201106_009-QC1_1_NEG_FISABIO'
