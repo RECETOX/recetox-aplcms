@@ -31,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-            lfs: 'true'
+          lfs: 'true'
       - uses: actions/checkout@v6
       - run: git lfs pull
       - name: Create conda environment
