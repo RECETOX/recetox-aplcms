@@ -76,7 +76,6 @@ read_arrow <- function(filepath) {
 #'
 #' @param filepath Path to an mzML or RAW file
 #' @return Character string with run/sample ID
-#' @error Stops if mzML file has no valid run ID source
 #' @export
 #' @importFrom xml2 read_xml xml_ns xml_find_first xml_attr
 #' @examples

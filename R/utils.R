@@ -4,7 +4,6 @@ NULL
 
 register_functions_to_cluster <- function(cluster) {
   snow::clusterExport(cluster, list(
-    "´%notin%´",
     "adaptive.bin",
     "add_feature_ids",
     "adjust.time",
@@ -236,5 +235,4 @@ is_mzml <- function(filepath) {
 }
 
 #' @keywords internal
-#' @export
 `%notin%` <- function(x, y) !(x %in% y)

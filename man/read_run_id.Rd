@@ -10,11 +10,15 @@ read_run_id(filepath)
 \item{filepath}{Path to an mzML or RAW file}
 }
 \value{
-Character string with run/sample ID, or `NA` if unsupported format
+Character string with run/sample ID
 }
 \description{
 Reads the run identifier from mzML or Thermo RAW files.
-For mzML files, extracts the run ID from the XML structure.
+For mzML files, checks `fileDescription/sourceFileList` for source file names.
+If all source files (after stripping `.raw`, `.mzml`, `.mzXML`, `.netcdf`,
+`.mzdata` extensions, iteratively to handle compound extensions like `.raw.mzml`)
+share the same base name, returns that name. Otherwise falls back to the
+`id` attribute of the `run` node. If neither is present, stops with an error.
 For RAW files, reads the sample ID from the file header.
 }
 \examples{
