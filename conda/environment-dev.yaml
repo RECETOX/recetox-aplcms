@@ -22,6 +22,7 @@ dependencies:
   - r-languageserver
   - r-jsonlite
   - r-styler
+  - r-lintr
   - r-patrick
   - radian
   - r-httpgd
