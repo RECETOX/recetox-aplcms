@@ -26,25 +26,7 @@ In contrast to well-known XCMS tool, apLCMS can process profile mode data and fi
 It operates in two modes - `unsupervised` and `hybrid`. `Unsupervised` mode of apLCMS is not relying on any existing knowledge about metabolites or any historically detected features. On the other hand, `Hybrid` version of apLCMS is incorporating the knowledge of known metabolites and historically detected features on the same machinery to help detect and quantify lower-intensity peaks. To use such knowledge, especially historical data, you must keep using the same chromatography system (otherwise the retention time will not match), and the same type of samples with similar extraction technique, such as human serum. For both modes, an equally-named function is exposed, parametrised with multiple arguments.
 
 ## Testing
-Before being able to run the tests, it is necessary to fetch the required data using the following commands:
-
-```
-wget -P tests/testdata/adjusted -i tests/remote-files/adjusted.txt
-wget -P tests/testdata/aligned -i tests/remote-files/aligned.txt
-wget -P tests/testdata/extracted -i tests/remote-files/extracted.txt
-wget -P tests/testdata/input -i tests/remote-files/input.txt
-wget -P tests/testdata/input -i tests/remote-files/whole-data-input.txt
-wget -P tests/testdata/recovered -i tests/remote-files/recovered.txt
-wget -P tests/testdata/recovered/recovered-extracted -i tests/remote-files/recovered-extracted.txt
-wget -P tests/testdata/recovered/recovered-corrected -i tests/remote-files/recovered-corrected.txt
-wget -P tests/testdata/filtered -i tests/remote-files/filtered.txt
-wget -P tests/testdata/filtered/run_filter -i tests/remote-files/run_filter.txt
-wget -P tests/testdata/features -i tests/remote-files/features.txt
-wget -P tests/testdata/clusters -i tests/remote-files/clusters.txt
-wget -P tests/testdata/hybrid -i tests/remote-files/hybrid.txt
-wget -P tests/testdata/template -i tests/remote-files/template.txt
-wget -P tests/testdata/unsupervised -i tests/remote-files/unsupervised.txt
-```
+Before being able to run the tests, it is necessary to fetch the required data using git lfs.
 
 The `hybrid` and `unsupervised` tests are [reported](https://github.com/RECETOX/recetox-aplcms/issues/24) to be OS specific and may fail depending on the platform they are run on. To ensure reproducibility during development process you can run the tests in a designated Docker container as follows:
 ```
