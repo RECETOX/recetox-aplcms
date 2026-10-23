@@ -780,8 +780,8 @@ normix.bic <- function(rt_profile, do.plot = FALSE, bw = c(15, 30, 60), eliminat
 #'  proportion of intensities less than this value, the component will be ignored.
 #' @param BIC_factor the factor that is multiplied on the number of parameters to modify the BIC criterion. If larger than 1,
 #'  models with more peaks are penalized more.
-#' @return A matrix is returned. The columns are: m/z value, retention time, spread (standard deviation of the estimated normal
-#'  curve), and estimated total signal strength (total area of the estimated normal curve).
+#' @return A tibble is returned. The columns include m/z value, retention time, spread (standard deviation of the estimated normal
+#'  curve), estimated total signal strength (total area of the estimated normal curve), group number, and sample ID.
 #' @export
 prof.to.features <- function(profile,
                              bandwidth,
@@ -809,7 +809,7 @@ prof.to.features <- function(profile,
   all_diff_mean_rts <- compute_delta_rt(base.curve$rt) # computes diff of mean values from consecutive values 
   aver_diff <- mean(diff(base.curve$rt))  
 
-  keys <- c("mz", "rt", "sd1", "sd2", "area")
+  keys <- c("mz", "rt", "sd1", "sd2", "area", "group_number")
   peak_parameters <- matrix(0, nrow = 0, ncol = length(keys), dimnames = list(NULL, keys))
   
   feature_groups <- split(profile, profile$group_number)
@@ -825,7 +825,7 @@ prof.to.features <- function(profile,
     # Defines the dataframe containing median_mz, median_rt, sd1, sd2, and area
     if (num_features < 2) {
       time_weights <- all_diff_mean_rts[which(base.curve$rt %in% feature_group$rt)]
-      rt_peak_shape <- c(feature_group[,'mz'], feature_group[,'rt'], NA, NA, feature_group[,'intensity'] * time_weights)
+      rt_peak_shape <- c(feature_group[,'mz'], feature_group[,'rt'], NA, NA, feature_group[,'intensity'] * time_weights, feature_group$group_number[1])
       peak_parameters <- rbind(peak_parameters, rt_peak_shape)
     } else {
       # find bandwidth for these particular range
@@ -843,14 +843,14 @@ prof.to.features <- function(profile,
         rt_peak_shape <- bigauss.mix(rt_profile, sigma_ratio_lim = sigma_ratio_lim, bw = bw, moment_power = moment_power, peak_estim_method = peak_estim_method, eliminate = component_eliminate, BIC_factor = BIC_factor)$param[, c(1, 2, 3, 5)]
       }
       if (is.null(nrow(rt_peak_shape))) {  # only one peak is found
-        peak_parameters <- rbind(peak_parameters, c(median(feature_group[,'mz']), rt_peak_shape))
+        peak_parameters <- rbind(peak_parameters, c(median(feature_group[,'mz']), rt_peak_shape, feature_group$group_number[1]))
       }
       
       else {     
         for (m in 1:nrow(rt_peak_shape))  # multiple peaks
         {
           rt_diff <- abs(feature_group[, "rt"] - rt_peak_shape[m, 'miu'])
-          peak_parameters <- rbind(peak_parameters, c(mean(feature_group[which(rt_diff == min(rt_diff)), 'mz']), rt_peak_shape[m, ]))
+          peak_parameters <- rbind(peak_parameters, c(mean(feature_group[which(rt_diff == min(rt_diff)), 'mz']), rt_peak_shape[m, ], feature_group$group_number[1]))
         }
       }
     }
