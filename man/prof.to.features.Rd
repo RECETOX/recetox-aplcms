@@ -50,8 +50,8 @@ models with more peaks are penalized more.}
 \item{do.plot}{Whether to generate diagnostic plots.}
 }
 \value{
-A matrix is returned. The columns are: m/z value, retention time, spread (standard deviation of the estimated normal
- curve), and estimated total signal strength (total area of the estimated normal curve).
+A tibble is returned. The columns include m/z value, retention time, spread (standard deviation of the estimated normal
+ curve), estimated total signal strength (total area of the estimated normal curve), group number, and sample ID.
 }
 \description{
 Each LC/MS profile is first processed by the function remove_noise() to remove noise and reduce data size. A matrix containing m/z

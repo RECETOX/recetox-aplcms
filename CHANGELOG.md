@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- peak tables written by `prof.to.features()` now retain the EIC `group_number` from the denoising step, allowing each extracted peak to be traced back to its source EIC [#3](https://github.com/RECETOX/recetox-aplcms/pull/3)
+
 ## [0.15.0] - 2025-12-19
 ### Added
 - added unit tests for normix and compute_mu_sc_std by @luciakostialova in [#250](https://github.com/RECETOX/recetox-aplcms/pull/250)

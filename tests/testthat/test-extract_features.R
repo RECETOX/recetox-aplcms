@@ -65,7 +65,18 @@ patrick::with_parameters_test_that(
     # update_expected(actual, expected_files, "extracted", ".parquet")
 
     expected <- read_parquet_files(expected_files, "extracted", ".parquet")
-    expect_equal(actual, expected, tolerance = 0.02)
+
+    # group_number links each extracted peak to the EIC it originates from
+    for (i in seq_along(actual)) {
+      expect_true("group_number" %in% colnames(actual[[i]]))
+      expect_true(all(actual[[i]]$group_number %in% profiles[[i]]$group_number))
+    }
+
+    expect_equal(
+      lapply(actual, dplyr::select, -group_number),
+      expected,
+      tolerance = 0.02
+    )
   },
   patrick::cases(
     RCX_shortened = list(
