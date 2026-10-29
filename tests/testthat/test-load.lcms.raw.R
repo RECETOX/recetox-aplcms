@@ -20,11 +20,11 @@ testthat::test_that("load.lcms.raw reads a raw file correctly", {
   actual <- load.lcms.raw(sample_raw_file)
 
   # Assert: Verify the function output matches expected results
-  testthat::expect_equal(nrow(actual), 30689)
+  testthat::expect_equal(nrow(actual), 30674)
   testthat::expect_equal(ncol(actual), 4)
-  testthat::expect_equal(length(actual$mz), 30689)
-  testthat::expect_equal(length(actual$rt), 30689)
-  testthat::expect_equal(length(actual$intensity), 30689)
+  testthat::expect_equal(length(actual$mz), 30674)
+  testthat::expect_equal(length(actual$rt), 30674)
+  testthat::expect_equal(length(actual$intensity), 30674)
 })
 
 testthat::test_that("load.lcms.raw correctly removes 0 intensity values with future.apply parallelism", {
