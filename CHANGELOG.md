@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - peak tables written by `prof.to.features()` now retain the EIC `group_number` from the denoising step, allowing each extracted peak to be traced back to its source EIC [#3](https://github.com/RECETOX/recetox-aplcms/pull/3)
 
+### Fixed
+- the `load.lcms.raw()` test no longer pins a single peak count: the count is a fingerprint of the native Thermo reader behind rawrr, so it is now looked up per rawrr version (30674 up to rawrr 1.8.1, 30689 from rawrr 1.10.2) instead of failing on every reader upgrade
+
 ## [0.15.0] - 2025-12-19
 ### Added
 - added unit tests for normix and compute_mu_sc_std by @luciakostialova in [#250](https://github.com/RECETOX/recetox-aplcms/pull/250)
