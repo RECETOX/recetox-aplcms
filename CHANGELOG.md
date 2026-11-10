@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - the `load.lcms.raw()` test no longer pins a single peak count: the count is a fingerprint of the native Thermo reader behind rawrr, so it is now looked up per rawrr version (30674 up to rawrr 1.8.1, 30689 from rawrr 1.10.2) instead of failing on every reader upgrade
+- `future` is now declared in `Imports` and imported in the `NAMESPACE`: tests set the parallel strategy with an unqualified `plan()` call, which resolved only because the `R CMD check` session happens to attach `future` through `future.apply`'s `Depends`. Running the tests with `testthat::test_local()` or after `pkgload::load_all()` failed with `could not find function "plan"`
 - tests that compare against a `summary()` expectation no longer fail on R >= 4.6: `summary.data.frame()` returns formatted text, and R 4.6 both describes character columns like a factor (`N.unique`/`N.blank`/`Min.nchar`/`Max.nchar` instead of `Class`/`Mode`) and prints numeric summaries with more digits. Fixtures captured on R >= 4.6 are stored next to the existing ones with an `_R46` suffix and selected by `read_expected_summary()`, so the fixtures for older R versions are unchanged and the data itself was not re-baselined
 
 ## [0.15.0] - 2025-12-19

@@ -1,3 +1,7 @@
+# the chunked loaders below run on the plan configured through future's plan() API,
+# so future itself has to be imported - future.apply depends on it but does not
+# export its functions into this namespace.
+#' @import future
 #' @import mzR
 #' @import tibble
 NULL
