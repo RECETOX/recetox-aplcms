@@ -26,7 +26,13 @@ patrick::with_parameters_test_that(
     expected <- arrow::read_parquet(expected_path)
 
 
-    expect_equal(dplyr::arrange(actual, dplyr::pick(area)), dplyr::arrange(expected, dplyr::pick(area)), tolerance = 0.01) # sort by area to avoid switched values
+    expect_true("group_number" %in% colnames(actual))
+    expect_true(all(actual$group_number %in% extracted_features$group_number))
+    expect_equal(
+      dplyr::arrange(dplyr::select(actual, -group_number), dplyr::pick(area)),
+      dplyr::arrange(expected, dplyr::pick(area)),
+      tolerance = 0.01
+    ) # sort by area to avoid switched values
   },
   patrick::cases(
     mbr_test0 = list(

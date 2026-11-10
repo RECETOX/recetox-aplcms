@@ -85,9 +85,9 @@ patrick::with_parameters_test_that("remove noise on raw with parallel workers wo
   plan(sequential)
 
   actual <- sut |> dplyr::select(-group_number) |> dplyr::arrange_at(c("mz", "rt"))
-  # saveRDS(summary(actual), expected_path)
+  # saveRDS(summary(actual), summary_fixture_path(expected_path))
 
-  expected <- readRDS(expected_path)
+  expected <- read_expected_summary(expected_path)
   
   expect_equal(summary(actual), expected)
 }, patrick::cases(

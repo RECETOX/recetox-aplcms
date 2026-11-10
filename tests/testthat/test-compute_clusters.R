@@ -89,7 +89,8 @@ test_that("compute clusters_simple_sd", {
   actual <- actual[order(sapply(actual, function(x) x$sample_id[1]))]
   result <- lapply(actual, summary)
 
-  expected <- readRDS(file.path("..", "testdata", "clusters", "clusters_simple_sd.Rds"))
+  # saveRDS(result, summary_fixture_path(file.path("..", "testdata", "clusters", "clusters_simple_sd.Rds")))
+  expected <- read_expected_summary(file.path("..", "testdata", "clusters", "clusters_simple_sd.Rds"))
 
   expect_equal(result, expected, tolerance = 0.02)
 })
@@ -114,8 +115,8 @@ patrick::with_parameters_test_that(
     )
 
     result <- lapply(actual$feature_tables, summary)
-    # saveRDS(result, file.path(testdata, "clusters", paste0("clusters_sd_", input, ".Rds")))
-    expected <- readRDS(file.path(testdata, "clusters", paste0("clusters_sd_", input, ".Rds")))
+    # saveRDS(result, summary_fixture_path(file.path(testdata, "clusters", paste0("clusters_sd_", input, ".Rds"))))
+    expected <- read_expected_summary(file.path(testdata, "clusters", paste0("clusters_sd_", input, ".Rds")))
     expect_equal(result, expected, tolerance = 0.02)
   },
   patrick::cases(

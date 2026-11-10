@@ -64,7 +64,11 @@ patrick::with_parameters_test_that(
       tibble::as_tibble(arrow::read_parquet(xx))
     })
 
-    expect_equal(actual, expected, tolerance = 0.02)
+    expect_equal(
+      lapply(actual, dplyr::select, -group_number),
+      expected,
+      tolerance = 0.02
+    )
 
     cat("\n\n")
     print(res)
